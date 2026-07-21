@@ -1,0 +1,50 @@
+name: Bug Report
+description: Report a bug with the Trade Republic Home Assistant integration
+title: '[Bug]: '
+labels: ['bug', 'triage']
+assignees:
+  - FaserF
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before submitting
+        - Search existing issues to avoid duplicates
+        - View the integration badge below:
+        [![Open your Home Assistant instance and show the Trade Republic integration.](https://my.home-assistant.io/badges/integration.svg)](https://my.home-assistant.io/redirect/integration/?domain=traderepublic)
+
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration Version
+      description: Which version of ha-traderepublic are you running?
+      placeholder: e.g. v1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant Version
+      description: |
+        [![Open your Home Assistant info.](https://my.home-assistant.io/badges/info.svg)](https://my.home-assistant.io/redirect/info/)
+      placeholder: e.g. 2026.7.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug Logs / Stack Trace
+      description: Paste relevant debug logs here (redact phone number or credentials).
+      render: text
+    validations:
+      required: false

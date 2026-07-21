@@ -1,0 +1,80 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit Trade Republic verbinden",
+        "description": "Gib deine Telefonnummer und entweder deinen sessionToken (dringend empfohlen) oder deine Login-PIN ein. Die Authentifizierung ist rein lesend.",
+        "data": {
+          "phone_number": "Telefonnummer (z. B. +491701234567)",
+          "pin": "PIN (4-6 Stellen)",
+          "session_token": "Session Token (sessionToken UUID aus dem Local Storage)"
+        }
+      },
+      "mfa": {
+        "title": "Zwei-Faktor-Authentifizierung",
+        "description": "Bitte gib den Verifizierungscode ein, der an dein Telefon oder deine App gesendet wurde.",
+        "data": {
+          "code": "Verifizierungscode"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Trade Republic reauthentifizieren",
+        "description": "Deine Session ist abgelaufen. Bitte gib einen neuen sessionToken oder deine PIN ein, um dich erneut zu verbinden.",
+        "data": {
+          "pin": "PIN (4-6 Stellen)",
+          "session_token": "Session Token (sessionToken UUID)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung zum Server fehlgeschlagen",
+      "invalid_auth": "Ungültige Anmeldedaten oder sessionToken",
+      "invalid_code": "Ungültiger Verifizierungscode",
+      "invalid_pin": "Die PIN muss zwischen 4 und 6 Ziffern lang sein (nur Zahlen)",
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten"
+    },
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits konfiguriert.",
+      "reauth_successful": "Reauthentifizierung war erfolgreich"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Trade Republic Optionen",
+        "description": "Passe das Aktualisierungsintervall an.",
+        "data": {
+          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "net_value": {
+        "name": "Depotwert"
+      },
+      "available_cash": {
+        "name": "Verrechnungskonto"
+      },
+      "invested_capital": {
+        "name": "Investiertes Kapital"
+      },
+      "total_profit": {
+        "name": "Gesamtrendite"
+      },
+      "total_profit_percent": {
+        "name": "Gesamtrendite %"
+      },
+      "exemption_total": {
+        "name": "Freistellungsauftrag Limit"
+      },
+      "exemption_used": {
+        "name": "Freistellungsauftrag Genutzt"
+      },
+      "savings_plans_count": {
+        "name": "Aktive Sparpläne"
+      }
+    }
+  }
+}

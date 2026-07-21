@@ -1,0 +1,80 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Trade Republic",
+        "description": "Enter your phone number and either your sessionToken (Highly Recommended) or your login PIN. Authentication is read-only.",
+        "data": {
+          "phone_number": "Phone Number (e.g. +491701234567)",
+          "pin": "PIN (4-6 digits)",
+          "session_token": "Session Token (sessionToken UUID from Local Storage)"
+        }
+      },
+      "mfa": {
+        "title": "Two-Factor Authentication",
+        "description": "Please enter the verification code sent to your phone or app.",
+        "data": {
+          "code": "Verification Code"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Reauthenticate Trade Republic",
+        "description": "Your session has expired. Please enter a new sessionToken or your PIN to reconnect.",
+        "data": {
+          "pin": "PIN (4-6 digits)",
+          "session_token": "Session Token (sessionToken UUID)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the server",
+      "invalid_auth": "Invalid credentials or sessionToken",
+      "invalid_code": "Invalid verification code",
+      "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
+      "unknown": "An unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "reauth_successful": "Reauthentication was successful"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Trade Republic Options",
+        "description": "Adjust the update interval.",
+        "data": {
+          "scan_interval": "Update interval (seconds)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "net_value": {
+        "name": "Portfolio Value"
+      },
+      "available_cash": {
+        "name": "Cash Balance"
+      },
+      "invested_capital": {
+        "name": "Invested Capital"
+      },
+      "total_profit": {
+        "name": "Total Return"
+      },
+      "total_profit_percent": {
+        "name": "Total Return %"
+      },
+      "exemption_total": {
+        "name": "Exemption Limit"
+      },
+      "exemption_used": {
+        "name": "Exemption Used"
+      },
+      "savings_plans_count": {
+        "name": "Active Savings Plans"
+      }
+    }
+  }
+}

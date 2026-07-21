@@ -1,0 +1,22 @@
+name: Feature Request
+description: Suggest an idea or enhancement for Trade Republic integration
+title: '[Feature]: '
+labels: ['enhancement']
+assignees:
+  - FaserF
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear and concise description of what the problem is.
+    validations:
+      required: false
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the Solution You'd Like
+      description: A clear and concise description of what you want to happen.
+    validations:
+      required: true

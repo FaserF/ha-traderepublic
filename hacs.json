@@ -1,0 +1,7 @@
+{
+  "name": "Trade Republic",
+  "render_readme": true,
+  "zip_release": true,
+  "filename": "traderepublic.zip",
+  "country": ["DE", "AT", "CH", "FR", "ES", "IT", "NL", "BE"]
+}

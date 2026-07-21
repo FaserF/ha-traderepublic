@@ -1,0 +1,16 @@
+name: Issue Orchestrator
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  label_issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auto Label Issue
+        run: |
+          echo "Processing new issue..."

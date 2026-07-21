@@ -1,0 +1,17 @@
+{
+  "domain": "traderepublic",
+  "name": "Trade Republic",
+  "codeowners": [
+    "@FaserF"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/FaserF/ha-traderepublic",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/FaserF/ha-traderepublic/issues",
+  "requirements": [
+    "curl_cffi>=0.7.0",
+    "websockets>=12.0"
+  ],
+  "version": "1.0.0"
+}
