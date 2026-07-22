@@ -378,9 +378,7 @@ class TradeRepublicAPIClient:
                     if isin:
                         ex_ids = pos.get("exchangeIds")
                         ex_suffix = (
-                            ex_ids[0]
-                            if isinstance(ex_ids, list) and ex_ids
-                            else "LSX"
+                            ex_ids[0] if isinstance(ex_ids, list) and ex_ids else "LSX"
                         )
                         ticker_id = (
                             isin
