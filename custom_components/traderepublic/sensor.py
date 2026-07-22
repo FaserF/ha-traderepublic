@@ -101,7 +101,9 @@ class TradeRepublicNetWorthSensor(TradeRepublicBaseEntity):
             "holdings": self.coordinator.data.get("holdings", []),
             "invested_capital": self.coordinator.data.get("invested_capital", 0.0),
             "total_profit": self.coordinator.data.get("total_profit", 0.0),
-            "total_profit_percent": self.coordinator.data.get("total_profit_percent", 0.0),
+            "total_profit_percent": self.coordinator.data.get(
+                "total_profit_percent", 0.0
+            ),
             "savings_plans_count": self.coordinator.data.get("savings_plans_count", 0),
             "exemption_total": self.coordinator.data.get("exemption_total", 1000.00),
             "exemption_used": self.coordinator.data.get("exemption_used", 0.00),
