@@ -52,7 +52,7 @@
   "entity": {
     "sensor": {
       "net_value": {
-        "name": "Portfolio Value"
+        "name": "Total Account Value"
       },
       "available_cash": {
         "name": "Cash Balance"

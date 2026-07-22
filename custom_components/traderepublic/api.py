@@ -431,8 +431,27 @@ class TradeRepublicAPIClient:
                 pos_invested = net_size * average_buy_in
                 invested_capital += pos_invested
 
-                current_price = prices.get(isin, average_buy_in)
-                pos_value = net_size * current_price
+                raw_net_value = (
+                    pos.get("netValue")
+                    or pos.get("value")
+                    or pos.get("marketValue")
+                    or pos.get("currentValue")
+                )
+                raw_profit = (
+                    pos.get("unrealisedProfit")
+                    or pos.get("unrealisedPnl")
+                    or pos.get("unrealizedProfit")
+                    or pos.get("profit")
+                )
+
+                if raw_net_value is not None:
+                    pos_value = float(raw_net_value)
+                elif raw_profit is not None:
+                    pos_value = pos_invested + float(raw_profit)
+                else:
+                    current_price = prices.get(isin, average_buy_in)
+                    pos_value = net_size * current_price
+
                 securities_value += pos_value
 
                 holdings.append({"isin": isin, "name": name, "value": pos_value})

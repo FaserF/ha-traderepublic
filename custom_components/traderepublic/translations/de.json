@@ -52,7 +52,7 @@
   "entity": {
     "sensor": {
       "net_value": {
-        "name": "Depotwert"
+        "name": "Gesamtwert"
       },
       "available_cash": {
         "name": "Verrechnungskonto"
