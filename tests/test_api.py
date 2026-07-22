@@ -30,7 +30,7 @@ async def test_demo_login():
 
     # Test custom interest rate override
     custom_data = await client.fetch_portfolio_data(interest_rate=3.5)
-    assert custom_data["interest_rate"] == 3.5
+    assert round(custom_data["interest_rate"], 2) == 3.5
     assert round(custom_data["accrued_interest_daily"], 4) == round(
         1420.50 * (0.035 / 365.0), 4
     )

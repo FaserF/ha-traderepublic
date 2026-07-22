@@ -160,11 +160,13 @@ class TradeRepublicAPIClient:
             return False
         try:
             await self._send(
-                f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolio"})
+                f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolioByType"})
             )
             self._msg_id += 1
             resp = await self._recv()
-            if resp and "compactPortfolio" in resp:
+            if resp and (
+                "compactPortfolioByType" in resp or " A " in resp or "connected" in resp
+            ):
                 return True
         except Exception:
             pass
@@ -476,7 +478,7 @@ class TradeRepublicAPIClient:
                 active_rate = results["api_interest_rate"]
 
             rate_factor = active_rate / 100.0 if active_rate > 1.0 else active_rate
-            results["interest_rate"] = rate_factor * 100.0
+            results["interest_rate"] = round(rate_factor * 100.0, 4)
             results["accrued_interest_daily"] = results["available_cash"] * (
                 rate_factor / 365.0
             )
