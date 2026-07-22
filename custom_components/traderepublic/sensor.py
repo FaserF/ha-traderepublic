@@ -64,7 +64,7 @@ class TradeRepublicBaseEntity(
             name="Trade Republic Portfolio",
             manufacturer="Trade Republic Bank GmbH",
             model="Trade Republic Mobile App Interface",
-            configuration_url="https://traderepublic.com",
+            configuration_url="https://app.traderepublic.com",
         )
 
 

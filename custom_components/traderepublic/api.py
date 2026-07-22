@@ -53,7 +53,7 @@ class TradeRepublicAPIClient:
             ssl_context = await loop.run_in_executor(None, ssl.create_default_context)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                "Origin": "https://traderepublic.com",
+                "Origin": "https://app.traderepublic.com",
             }
             if self.session_token:
                 headers["Authorization"] = f"Bearer {self.session_token}"

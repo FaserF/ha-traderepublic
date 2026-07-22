@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import glob
 import json
 import os
@@ -61,69 +62,120 @@ def write_version(v, manifest_path=None):
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
             f.write("\n")
+    if os.path.exists("pyproject.toml"):
+        with open("pyproject.toml", encoding="utf-8") as f:
+            content = f.read()
+        content = re.sub(
+            r'^version\s*=\s*".*?"', f'version = "{v}"', content, flags=re.MULTILINE
+        )
+        with open("pyproject.toml", "w", encoding="utf-8") as f:
+            f.write(content)
 
 
-def bump_version(release_type="beta", level="patch", override=None, manifest_path=None):
-    if override and override.strip():
-        new_v = override.strip().lstrip("v")
-        write_version(new_v, manifest_path)
-        return new_v
+def calculate_version(rtype, level="patch", curr=None, now=None, override=None):
+    if override:
+        # Strip leading 'v' if present to normalize
+        if override.lower().startswith("v"):
+            override = override[1:]
+        return override
 
-    current = get_current_version(manifest_path).lstrip("v")
-    m = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:b(\d+))?$", current)
-    if not m:
-        major, minor, patch, beta = 1, 0, 0, None
+    if now is None:
+        now = datetime.datetime.now()
+    if curr is None:
+        curr = get_current_version(MANIFEST_FILE)
+
+    match = re.match(r"^v?(\d+)\.(\d+)\.(\d+)(?:(b)(\d+)|(-dev)(\d+))?$", curr)
+    if not match:
+        return "1.0.0"
+
+    v1_str, v2_str, v3_str, b_p, b_n, d_p, d_n = match.groups()
+    v1, v2, v3 = int(v1_str), int(v2_str), int(v3_str)
+    stype, snum = ("b", int(b_n)) if b_p else (("-dev", int(d_n)) if d_p else (None, 0))
+
+    # Detect scheme based on major version (e.g. 2026 is CalVer, 1 or 2 is SemVer)
+    is_calver = v1 >= 2020
+
+    if is_calver:
+        # CalVer Bumping Logic (Year.Month.Patch)
+        year, month = now.year, now.month
+        new_cyc = (year != v1) or (month != v2)
+        p = 0 if new_cyc else v3
+
+        if rtype == "stable":
+            if stype:
+                return f"{year}.{month}.{p}"
+            return f"{year}.{month}.0" if new_cyc else f"{year}.{month}.{p + 1}"
+        if rtype == "beta":
+            if new_cyc:
+                return f"{year}.{month}.0b0"
+            if stype == "b":
+                return f"{year}.{month}.{p}b{snum + 1}"
+            if stype == "-dev":
+                return f"{year}.{month}.{p}b0"
+            return f"{year}.{month}.{p + 1}b0"
+        if rtype in ["dev", "nightly"]:
+            if new_cyc:
+                return f"{year}.{month}.0-dev0"
+            if stype == "-dev":
+                return f"{year}.{month}.{p}-dev{snum + 1}"
+            return f"{year}.{month}.{p + 1}-dev0"
     else:
-        major, minor, patch = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        beta = int(m.group(4)) if m.group(4) else None
-
-    if release_type == "stable":
-        if beta is not None:
-            new_v = f"{major}.{minor}.{patch}"
-        else:
+        # SemVer Bumping Logic (Major.Minor.Patch)
+        if rtype == "stable":
+            # Promote an existing pre-release only when staying at the same level.
+            if stype and level == "patch":
+                return f"{v1}.{v2}.{v3}"
             if level == "major":
-                major += 1
-                minor = 0
-                patch = 0
-            elif level == "minor":
-                minor += 1
-                patch = 0
-            else:
-                patch += 1
-            new_v = f"{major}.{minor}.{patch}"
-    else:  # beta / dev / nightly
-        if beta is None:
+                return f"{v1 + 1}.0.0"
+            if level == "minor":
+                return f"{v1}.{v2 + 1}.0"
+            return f"{v1}.{v2}.{v3 + 1}"
+        if rtype == "beta":
+            # Only reuse current patch when staying at the same level.
+            if stype == "b" and level == "patch":
+                return f"{v1}.{v2}.{v3}b{snum + 1}"
             if level == "major":
-                major += 1
-                minor = 0
-                patch = 0
-            elif level == "minor":
-                minor += 1
-                patch = 0
-            else:
-                patch += 1
-            beta = 1
-        else:
-            beta += 1
-        new_v = f"{major}.{minor}.{patch}b{beta}"
+                return f"{v1 + 1}.0.0b0"
+            if level == "minor":
+                return f"{v1}.{v2 + 1}.0b0"
+            return f"{v1}.{v2}.{v3 + 1}b0"
+        if rtype in ["dev", "nightly"]:
+            # Only reuse current patch when staying at the same level.
+            if stype == "-dev" and level == "patch":
+                return f"{v1}.{v2}.{v3}-dev{snum + 1}"
+            if level == "major":
+                return f"{v1 + 1}.0.0-dev0"
+            if level == "minor":
+                return f"{v1}.{v2 + 1}.0-dev0"
+            return f"{v1}.{v2}.{v3 + 1}-dev0"
 
-    write_version(new_v, manifest_path)
-    return new_v
+    return curr
+
+
+def main():
+    p = argparse.ArgumentParser()
+    subparsers = p.add_subparsers(dest="command")
+
+    bump_parser = subparsers.add_parser("bump")
+    bump_parser.add_argument(
+        "--type", choices=["stable", "beta", "dev", "nightly"], required=True
+    )
+    bump_parser.add_argument(
+        "--level", choices=["major", "minor", "patch"], default="patch"
+    )
+    bump_parser.add_argument("--override", default=None)
+
+    args = p.parse_args()
+
+    if args.command == "bump":
+        # Handle empty string override values from workflow inputs
+        override_val = (
+            args.override if args.override and args.override.strip() else None
+        )
+        new_v = calculate_version(args.type, args.level, override=override_val)
+        write_version(new_v)
+        print(new_v)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    sub = parser.add_subparsers(dest="cmd")
-    b = sub.add_parser("bump")
-    b.add_argument("--type", default="beta")
-    b.add_argument("--level", default="patch")
-    b.add_argument("--override", default="")
-    b.add_argument("--manifest", default=None)
-    g = sub.add_parser("get")
-    g.add_argument("--manifest", default=None)
-    args = parser.parse_args()
-
-    if args.cmd == "get":
-        print(get_current_version(args.manifest))
-    elif args.cmd == "bump":
-        print(bump_version(args.type, args.level, args.override, args.manifest))
+    main()
