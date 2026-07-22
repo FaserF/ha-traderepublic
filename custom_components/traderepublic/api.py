@@ -178,11 +178,14 @@ class TradeRepublicAPIClient:
 
         if self.phone_number.startswith("+4912345"):
             # Return high-fidelity mockup data for testing
+            rate = interest_rate if interest_rate is not None else 2.25
+            rate_factor = rate / 100.0 if rate > 1.0 else rate
+            cash = 1420.50
             return {
                 "net_value": 15420.50,
                 "initial_depot_value": 14000.00,
                 "committed_cash": 0.00,
-                "available_cash": 1420.50,
+                "available_cash": cash,
                 "invested_capital": 14000.00,
                 "total_profit": 1420.50,
                 "total_profit_percent": 10.15,
@@ -193,6 +196,20 @@ class TradeRepublicAPIClient:
                     {"isin": "US88160R1014", "name": "Tesla Inc.", "value": 4500.0},
                     {"isin": "US0378331005", "name": "Apple Inc.", "value": 9500.0},
                 ],
+                "card_status": "ACTIVE",
+                "card_saveback_earned": 14.50,
+                "card_saveback_limit": 15.00,
+                "recent_transactions": [
+                    {
+                        "title": "Tesla Inc. Dividend",
+                        "subtitle": "Payout",
+                        "amount": 25.00,
+                        "timestamp": 1700000000,
+                    }
+                ],
+                "interest_rate": rate_factor * 100.0,
+                "accrued_interest_daily": cash * (rate_factor / 365.0),
+                "accrued_interest_monthly_est": cash * (rate_factor / 12.0),
             }
 
         if not self.session_token:

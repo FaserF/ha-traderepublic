@@ -20,3 +20,17 @@ async def test_demo_login():
     data = await client.fetch_portfolio_data()
     assert data["net_value"] == 15420.50
     assert data["available_cash"] == 1420.50
+    assert data["interest_rate"] == 2.25
+    assert round(data["accrued_interest_daily"], 4) == round(
+        1420.50 * (0.0225 / 365.0), 4
+    )
+    assert data["card_status"] == "ACTIVE"
+    assert data["card_saveback_earned"] == 14.50
+    assert len(data["recent_transactions"]) == 1
+
+    # Test custom interest rate override
+    custom_data = await client.fetch_portfolio_data(interest_rate=3.5)
+    assert custom_data["interest_rate"] == 3.5
+    assert round(custom_data["accrued_interest_daily"], 4) == round(
+        1420.50 * (0.035 / 365.0), 4
+    )

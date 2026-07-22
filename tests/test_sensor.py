@@ -25,7 +25,16 @@ async def test_sensor_setup(hass: HomeAssistant, mock_config_entry) -> None:
             "total_profit_percent": 10.15,
             "exemption_total": 1000.00,
             "exemption_used": 120.45,
-            "savings_plans_count": 3,
+            "holdings": [
+                {"isin": "US88160R1014", "name": "Tesla Inc.", "value": 4500.0}
+            ],
+            "card_status": "ACTIVE",
+            "card_saveback_earned": 14.50,
+            "card_saveback_limit": 15.00,
+            "recent_transactions": [{"title": "Dividend", "amount": 25.0}],
+            "interest_rate": 2.25,
+            "accrued_interest_daily": 0.087,
+            "accrued_interest_monthly_est": 2.66,
         },
     ):
         assert await hass.config_entries.async_setup(mock_config_entry.entry_id)
@@ -35,7 +44,11 @@ async def test_sensor_setup(hass: HomeAssistant, mock_config_entry) -> None:
         state = hass.states.get("sensor.trade_republic_portfolio_portfolio_value")
         assert state is not None
         assert state.state == "15420.5"
+        assert "holdings" in state.attributes
+        assert "recent_transactions" in state.attributes
 
         state_cash = hass.states.get("sensor.trade_republic_portfolio_cash_balance")
         assert state_cash is not None
         assert state_cash.state == "1420.5"
+        assert state_cash.attributes.get("interest_rate") == 2.25
+        assert state_cash.attributes.get("card_status") == "ACTIVE"
