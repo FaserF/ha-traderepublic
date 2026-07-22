@@ -17,7 +17,9 @@ from .const import (
     CONF_PIN,
     CONF_SESSION_TOKEN,
     CONF_SCAN_INTERVAL,
+    CONF_INTEREST_RATE,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_INTEREST_RATE,
     MIN_SCAN_INTERVAL,
 )
 
@@ -278,6 +280,15 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
                             ),
                         ),
                     ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+                    vol.Optional(
+                        CONF_INTEREST_RATE,
+                        default=self.config_entry.options.get(
+                            CONF_INTEREST_RATE,
+                            self.config_entry.data.get(
+                                CONF_INTEREST_RATE, DEFAULT_INTEREST_RATE
+                            ),
+                        ),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
                 }
             ),
         )

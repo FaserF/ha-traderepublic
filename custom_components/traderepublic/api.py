@@ -170,7 +170,9 @@ class TradeRepublicAPIClient:
             pass
         return False
 
-    async def fetch_portfolio_data(self) -> dict[str, Any]:
+    async def fetch_portfolio_data(
+        self, interest_rate: float | None = None
+    ) -> dict[str, Any]:
         """Fetch read-only portfolio metrics, cash balance, and savings plans."""
         import time
 
@@ -202,6 +204,10 @@ class TradeRepublicAPIClient:
             "invested_capital": 0.0,
             "savings_plans_count": 0,
             "holdings": [],
+            "card_status": "INACTIVE",
+            "card_saveback_earned": 0.0,
+            "card_saveback_limit": 0.0,
+            "recent_transactions": [],
         }
         portfolio_payload: dict[str, Any] = {}
         prices: dict[str, float] = {}
@@ -227,13 +233,31 @@ class TradeRepublicAPIClient:
             sub_savings_id = self._msg_id
             self._msg_id += 1
 
-            # Phase 1: Read initial portfolio and cash data
+            # Sub to card
+            await self._send(f"sub {self._msg_id} " + json.dumps({"type": "card"}))
+            sub_card_id = self._msg_id
+            self._msg_id += 1
+
+            # Sub to timeline
+            await self._send(f"sub {self._msg_id} " + json.dumps({"type": "timeline"}))
+            sub_timeline_id = self._msg_id
+            self._msg_id += 1
+
+            # Phase 1: Read initial portfolio, cash, card, and timeline data
             start_time = time.time()
             has_portfolio = False
             has_cash = False
             has_savings = False
+            has_card = False
+            has_timeline = False
             while time.time() - start_time < 5.0:
-                if has_portfolio and has_cash and has_savings:
+                if (
+                    has_portfolio
+                    and has_cash
+                    and has_savings
+                    and has_card
+                    and has_timeline
+                ):
                     break
                 msg = await self._recv()
                 if not msg:
@@ -249,24 +273,79 @@ class TradeRepublicAPIClient:
                                 portfolio_payload = payload
                                 has_portfolio = True
                             elif sub_id == sub_cash_id:
-                                if isinstance(payload, list) and len(payload) > 0:
+                                target_obj = (
+                                    payload[0]
+                                    if isinstance(payload, list) and len(payload) > 0
+                                    else payload
+                                )
+                                if isinstance(target_obj, dict):
                                     results["available_cash"] = float(
-                                        payload[0].get("amount") or 0.0
-                                    )
-                                elif isinstance(payload, dict):
-                                    results["available_cash"] = float(
-                                        payload.get("amount")
-                                        or payload.get("availableCash")
+                                        target_obj.get("amount")
+                                        or target_obj.get("availableCash")
                                         or 0.0
                                     )
+                                    api_rate = (
+                                        target_obj.get("interestRate")
+                                        or target_obj.get("rate")
+                                        or target_obj.get("interest")
+                                    )
+                                    if api_rate is not None:
+                                        try:
+                                            results["api_interest_rate"] = float(
+                                                api_rate
+                                            )
+                                        except (ValueError, TypeError):
+                                            pass
                                 has_cash = True
                             elif sub_id == sub_savings_id:
                                 results["savings_plans_count"] = len(
                                     payload.get("savingsPlans") or []
                                 )
                                 has_savings = True
+                            elif sub_id == sub_card_id:
+                                results["card_status"] = payload.get(
+                                    "status", "INACTIVE"
+                                )
+                                results["card_saveback_earned"] = float(
+                                    payload.get("savebackEarned") or 0.0
+                                )
+                                results["card_saveback_limit"] = float(
+                                    payload.get("savebackLimit") or 0.0
+                                )
+                                has_card = True
+                            elif sub_id == sub_timeline_id:
+                                items = payload.get("items", [])
+                                txs = []
+                                for item in items[:5]:
+                                    title = item.get("title")
+                                    subtitle = item.get("subtitle")
+                                    amount_val = 0.0
+                                    amount_obj = item.get("amount")
+                                    if isinstance(amount_obj, dict):
+                                        amount_val = float(
+                                            amount_obj.get("value") or 0.0
+                                        )
+                                    txs.append(
+                                        {
+                                            "title": title,
+                                            "subtitle": subtitle,
+                                            "amount": amount_val,
+                                            "timestamp": item.get("timestamp"),
+                                        }
+                                    )
+                                results["recent_transactions"] = txs
+                                has_timeline = True
                         except (ValueError, KeyError, TypeError):
                             continue
+                    elif status == "E":
+                        try:
+                            sub_id = int(sub_id_str)
+                            if sub_id == sub_card_id:
+                                has_card = True
+                            elif sub_id == sub_timeline_id:
+                                has_timeline = True
+                        except ValueError:
+                            pass
 
             # Parse positions and subscribe to tickers
             positions = []
@@ -353,10 +432,28 @@ class TradeRepublicAPIClient:
             results["exemption_used"] = 0.00
             results["holdings"] = holdings
 
+            # Interest/Tagesgeld Calculations (Priority: User override -> API rate -> 2.25 default)
+            active_rate = 2.25
+            if interest_rate is not None:
+                active_rate = interest_rate
+            elif "api_interest_rate" in results and results["api_interest_rate"] > 0:
+                active_rate = results["api_interest_rate"]
+
+            rate_factor = active_rate / 100.0 if active_rate > 1.0 else active_rate
+            results["interest_rate"] = rate_factor * 100.0
+            results["accrued_interest_daily"] = results["available_cash"] * (
+                rate_factor / 365.0
+            )
+            results["accrued_interest_monthly_est"] = results["available_cash"] * (
+                rate_factor / 12.0
+            )
+
             # Cleanup subscriptions
             await self._send(f"unsub {sub_portfolio_id}")
             await self._send(f"unsub {sub_cash_id}")
             await self._send(f"unsub {sub_savings_id}")
+            await self._send(f"unsub {sub_card_id}")
+            await self._send(f"unsub {sub_timeline_id}")
             for sub_id in ticker_subs:
                 await self._send(f"unsub {sub_id}")
 

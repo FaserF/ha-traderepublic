@@ -29,6 +29,7 @@ from .const import (
     CONF_PIN,
     CONF_SESSION_TOKEN,
     CONF_SCAN_INTERVAL,
+    CONF_INTEREST_RATE,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
@@ -143,7 +144,14 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     # Try logging in if we don't have a session or if it expired
                     if not client.session_token:
                         await client.login_step1()
-                    data = await client.fetch_portfolio_data()
+                    override_rate: float | None = None
+                    if CONF_INTEREST_RATE in self.config_entry.options:
+                        override_rate = float(
+                            self.config_entry.options[CONF_INTEREST_RATE]
+                        )
+                    data = await client.fetch_portfolio_data(
+                        interest_rate=override_rate
+                    )
                     await client.close()
             except InvalidAuthError as err:
                 _LOGGER.error(

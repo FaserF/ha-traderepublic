@@ -107,6 +107,7 @@ class TradeRepublicNetWorthSensor(TradeRepublicBaseEntity):
             "savings_plans_count": self.coordinator.data.get("savings_plans_count", 0),
             "exemption_total": self.coordinator.data.get("exemption_total", 1000.00),
             "exemption_used": self.coordinator.data.get("exemption_used", 0.00),
+            "recent_transactions": self.coordinator.data.get("recent_transactions", []),
         }
 
 
@@ -129,6 +130,28 @@ class TradeRepublicCashSensor(TradeRepublicBaseEntity):
         if not self.coordinator.data:
             return None
         return self.coordinator.data.get("available_cash")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes of the sensor."""
+        if not self.coordinator.data:
+            return None
+        return {
+            "interest_rate": self.coordinator.data.get("interest_rate", 0.0375),
+            "accrued_interest_daily": self.coordinator.data.get(
+                "accrued_interest_daily", 0.0
+            ),
+            "accrued_interest_monthly_est": self.coordinator.data.get(
+                "accrued_interest_monthly_est", 0.0
+            ),
+            "card_status": self.coordinator.data.get("card_status", "INACTIVE"),
+            "card_saveback_earned": self.coordinator.data.get(
+                "card_saveback_earned", 0.0
+            ),
+            "card_saveback_limit": self.coordinator.data.get(
+                "card_saveback_limit", 0.0
+            ),
+        }
 
 
 class TradeRepublicInvestedSensor(TradeRepublicBaseEntity):
