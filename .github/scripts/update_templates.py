@@ -38,8 +38,6 @@ def clean_and_update_template(file_path, integration_version, ha_version, repo_n
     # Split by field block: a block starts with "  - type:"
     blocks = re.split(r"(\s*-\s*type:)", content)
 
-    get_service_version(repo_name)
-
     for i in range(2, len(blocks), 2):
         block_content = blocks[i]
 
