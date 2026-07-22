@@ -101,7 +101,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             not self._force_update
             and self._last_success is not None
             and self.data
-            and (self.data.get("net_value", 0.0) > 0.0 or self.data.get("available_cash", 0.0) > 0.0)
+            and (
+                self.data.get("net_value", 0.0) > 0.0
+                or self.data.get("available_cash", 0.0) > 0.0
+            )
         ):
             time_since = dt_util.now() - self._last_success
             effective_interval = self.update_interval or timedelta(
