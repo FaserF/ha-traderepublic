@@ -71,13 +71,13 @@ Therefore, manually importing your active browser `sessionToken` is the only sta
 1. Open your desktop web browser (e.g., Chrome, Firefox, Edge) and log in to [app.traderepublic.com](https://app.traderepublic.com).
 2. Once logged in, press **F12** (or right-click anywhere and select **Inspect**) to open the Developer Tools.
 3. Navigate to the **Application** tab (Chrome/Edge) or **Storage** tab (Firefox).
-4. In the left sidebar under the **Storage** section, expand **Local Storage** and select `https://app.traderepublic.com`.
-5. Find the key named **`session`** and look at its value. It is a JSON object containing a property called `sessionToken` (e.g., `{"sessionToken":"3471b571-7730-4f85-bbaf-ca6d71322eec", ...}`).
-6. Copy ONLY the UUID value of the `sessionToken` (e.g., `3471b571-7730-4f85-bbaf-ca6d71322eec`).
-7. Paste this UUID into the **Session Token (sessionToken)** field during the Home Assistant integration setup. You can leave the **PIN** field blank.
+4. In the left sidebar under the **Storage** section, expand **Cookies** and select `https://app.traderepublic.com`.
+5. Find the cookie named **`tr_session`**. Its value is a very long JWT string starting with `eyJhbGci...`.
+6. Copy the **entire** value of the `tr_session` cookie (the complete long string). Do NOT copy the `tr_claims` cookie or only parts of the token.
+7. Paste this complete token into the **Session Token (sessionToken)** field during the Home Assistant integration setup. You can leave the **PIN** field blank.
 
 > [!WARNING]
-> **Session Expiry Limitation:** A `sessionToken` eventually expires. When the session expires or is terminated (e.g. by logging out on your web browser), Home Assistant will show a "Reauthentication required" notification, and you will need to copy and paste a new `sessionToken` UUID from a fresh browser session.
+> **Session Expiry Limitation:** A `sessionToken` eventually expires. When the session expires or is terminated (e.g. by logging out on your web browser), Home Assistant will show a "Reauthentication required" notification, and you will need to copy and paste a new `tr_session` cookie value from a fresh browser session.
 
 ---
 
@@ -85,16 +85,19 @@ Therefore, manually importing your active browser `sessionToken` is the only sta
 
 The following sensors are created under the **Trade Republic** device:
 
-| Sensor | Unit | Description |
-|---|---|---|
-| `sensor.portfolio_value` | EUR | Total portfolio value |
-| `sensor.cash_balance` | EUR | Available cash balance |
-| `sensor.invested_capital` | EUR | Invested capital |
-| `sensor.total_return` | EUR | Profit or loss amount |
-| `sensor.total_return_percent` | % | Return in percent |
-| `sensor.exemption_limit` | EUR | Exemption order limit |
-| `sensor.exemption_used` | EUR | Used exemption allowance |
-| `sensor.active_savings_plans` | plans | Number of active savings plans |
+| Sensor | Unit | Description | Default Status |
+|---|---|---|---|
+| `sensor.portfolio_value` | EUR | Total portfolio value (including cash) | **Enabled** |
+| `sensor.cash_balance` | EUR | Available cash balance (Tagesgeld) | **Enabled** |
+| `sensor.invested_capital` | EUR | Invested capital in securities | *Disabled* (available as attribute) |
+| `sensor.total_return` | EUR | Profit or loss amount | *Disabled* (available as attribute) |
+| `sensor.total_return_percent` | % | Return in percent | *Disabled* (available as attribute) |
+| `sensor.exemption_limit` | EUR | Exemption order limit | *Disabled* (available as attribute) |
+| `sensor.exemption_used` | EUR | Used exemption allowance | *Disabled* (available as attribute) |
+| `sensor.active_savings_plans` | plans | Number of active savings plans | *Disabled* (available as attribute) |
+
+> [!NOTE]
+> To keep your Home Assistant clean, only the **Total Portfolio Value** and **Cash Balance** are enabled as entities by default. The values of the other metrics (along with your detailed asset holdings) are exposed directly as state attributes under the `sensor.portfolio_value` entity. You can always enable the individual sensors manually in the Home Assistant entity settings if needed.
 
 ---
 

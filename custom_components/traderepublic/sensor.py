@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 
+from typing import Any
+
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -50,7 +52,9 @@ class TradeRepublicBaseEntity(
     _attr_has_entity_name = True
 
     def __init__(
-        self, coordinator: TradeRepublicDataUpdateCoordinator, entry_id: str | None = None
+        self,
+        coordinator: TradeRepublicDataUpdateCoordinator,
+        entry_id: str | None = None,
     ) -> None:
         """Initialize the base entity."""
         super().__init__(coordinator)
@@ -88,6 +92,21 @@ class TradeRepublicNetWorthSensor(TradeRepublicBaseEntity):
             return None
         return self.coordinator.data.get("net_value")
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes of the sensor."""
+        if not self.coordinator.data:
+            return None
+        return {
+            "holdings": self.coordinator.data.get("holdings", []),
+            "invested_capital": self.coordinator.data.get("invested_capital", 0.0),
+            "total_profit": self.coordinator.data.get("total_profit", 0.0),
+            "total_profit_percent": self.coordinator.data.get("total_profit_percent", 0.0),
+            "savings_plans_count": self.coordinator.data.get("savings_plans_count", 0),
+            "exemption_total": self.coordinator.data.get("exemption_total", 1000.00),
+            "exemption_used": self.coordinator.data.get("exemption_used", 0.00),
+        }
+
 
 class TradeRepublicCashSensor(TradeRepublicBaseEntity):
     """Sensor for Trade Republic Available Cash Balance."""
@@ -117,6 +136,7 @@ class TradeRepublicInvestedSensor(TradeRepublicBaseEntity):
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "EUR"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
@@ -138,6 +158,7 @@ class TradeRepublicTotalProfitSensor(TradeRepublicBaseEntity):
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "EUR"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
@@ -158,6 +179,7 @@ class TradeRepublicTotalProfitPercentSensor(TradeRepublicBaseEntity):
     _attr_translation_key = "total_profit_percent"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "%"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
@@ -179,6 +201,7 @@ class TradeRepublicExemptionTotalSensor(TradeRepublicBaseEntity):
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "EUR"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
@@ -200,6 +223,7 @@ class TradeRepublicExemptionUsedSensor(TradeRepublicBaseEntity):
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
     _attr_native_unit_of_measurement = "EUR"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""
@@ -220,6 +244,7 @@ class TradeRepublicSavingsPlansCountSensor(TradeRepublicBaseEntity):
     _attr_translation_key = "savings_plans_count"
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = "plans"
+    _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: TradeRepublicDataUpdateCoordinator) -> None:
         """Initialize the sensor."""

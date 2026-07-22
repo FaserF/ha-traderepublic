@@ -1,4 +1,5 @@
 """Config flow for Trade Republic integration."""
+
 from __future__ import annotations
 
 import logging
@@ -140,7 +141,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     session_token = await self._client.login_step2(code)
                     await self._client.close()
                     if "entry_id" in self.context:
-                        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+                        entry = self.hass.config_entries.async_get_entry(
+                            self.context["entry_id"]
+                        )
                         if entry:
                             self.hass.config_entries.async_update_entry(
                                 entry,
@@ -203,7 +206,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     await self._client.connect()
                     if session_token:
                         if await self._client.verify_session():
-                            entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+                            entry = self.hass.config_entries.async_get_entry(
+                                self.context["entry_id"]
+                            )
                             if entry:
                                 self.hass.config_entries.async_update_entry(
                                     entry,
@@ -211,9 +216,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                         **entry.data,
                                         CONF_PIN: self._pin or "",
                                         CONF_SESSION_TOKEN: session_token,
-                                    }
+                                    },
                                 )
-                                await self.hass.config_entries.async_reload(entry.entry_id)
+                                await self.hass.config_entries.async_reload(
+                                    entry.entry_id
+                                )
                                 return self.async_abort(reason="reauth_successful")
                         else:
                             errors["base"] = "invalid_auth"

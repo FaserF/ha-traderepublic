@@ -17,12 +17,15 @@ async def test_config_flow_demo(hass: HomeAssistant) -> None:
     assert result["step_id"] == "user"
 
     # Submit credentials
-    with patch(
-        "custom_components.traderepublic.api.TradeRepublicAPIClient.connect",
-        return_value=None
-    ), patch(
-        "custom_components.traderepublic.api.TradeRepublicAPIClient.login_step1",
-        return_value="demo_session"
+    with (
+        patch(
+            "custom_components.traderepublic.api.TradeRepublicAPIClient.connect",
+            return_value=None,
+        ),
+        patch(
+            "custom_components.traderepublic.api.TradeRepublicAPIClient.login_step1",
+            return_value="demo_session",
+        ),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],

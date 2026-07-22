@@ -8,6 +8,7 @@ import sys
 # Windows: mock fcntl and resource to prevent Home Assistant runner module errors
 if sys.platform == "win32":
     import types
+
     sys.modules["fcntl"] = types.ModuleType("fcntl")
     sys.modules["resource"] = types.ModuleType("resource")
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -22,10 +23,12 @@ from custom_components.traderepublic.const import (
     DOMAIN,
 )
 
+
 @pytest.fixture(autouse=True)
 async def enable_custom_integrations(hass):
     """Enable custom integrations to be loaded in tests."""
     hass.data.pop("custom_components", None)
+
 
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:

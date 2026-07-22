@@ -15,14 +15,18 @@ import websockets
 
 _LOGGER = logging.getLogger(__name__)
 
+
 class TradeRepublicAPIError(Exception):
     """Base exception for Trade Republic API."""
+
 
 class CannotConnectError(TradeRepublicAPIError):
     """Error indicating connection failure."""
 
+
 class InvalidAuthError(TradeRepublicAPIError):
     """Error indicating invalid credentials."""
+
 
 class OTPRequiredError(TradeRepublicAPIError):
     """Error indicating OTP or Push confirmation is required."""
@@ -61,28 +65,37 @@ class TradeRepublicAPIClient:
                 self.ws = await websockets.connect(
                     "wss://api.traderepublic.com",
                     ssl=ssl_context,
-                    additional_headers=headers
+                    additional_headers=headers,
                 )
             except TypeError:
                 self.ws = await websockets.connect(
                     "wss://api.traderepublic.com",
                     ssl=ssl_context,
-                    extra_headers=headers
+                    extra_headers=headers,
                 )
             # Handshake
-            await self._send("connect 26 " + json.dumps({
-                "locale": "de",
-                "platformId": "web",
-                "appVersion": "4.110.0",
-                "osVersion": "10.0.0"
-            }))
+            await self._send(
+                "connect 26 "
+                + json.dumps(
+                    {
+                        "locale": "de",
+                        "platformId": "web",
+                        "appVersion": "4.110.0",
+                        "osVersion": "10.0.0",
+                    }
+                )
+            )
             resp = await self._recv()
             if not resp or "connected" not in resp:
                 raise CannotConnectError("Handshake failed")
         except Exception as exc:
             _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)
-            if "401" in str(exc) or (hasattr(exc, "status_code") and getattr(exc, "status_code") == 401):
-                raise InvalidAuthError(f"Session token expired or invalid (HTTP 401): {exc}") from exc
+            if "401" in str(exc) or (
+                hasattr(exc, "status_code") and getattr(exc, "status_code") == 401
+            ):
+                raise InvalidAuthError(
+                    f"Session token expired or invalid (HTTP 401): {exc}"
+                ) from exc
             raise CannotConnectError(f"WebSocket connection failed: {exc}") from exc
 
     async def login_step1(self) -> str | None:
@@ -93,27 +106,24 @@ class TradeRepublicAPIClient:
             return "demo_session"
 
         # Send credentials
-        login_payload = {
-            "phoneNumber": self.phone_number,
-            "pin": self.pin
-        }
+        login_payload = {"phoneNumber": self.phone_number, "pin": self.pin}
         await self._send(f"login {self._msg_id} " + json.dumps(login_payload))
         self._msg_id += 1
-        
+
         # Await response
         try:
             resp = await self._recv()
             if not resp:
                 raise InvalidAuthError("No response from login")
-            
+
             data = json.loads(resp)
             if "error" in data:
                 raise InvalidAuthError(data["error"])
-            
+
             # Often TR returns step 2 / OTP requirement
             if data.get("status") == "otp_required" or "otp" in resp.lower():
                 raise OTPRequiredError("Verification code required")
-                
+
             val = data.get("sessionId")
             return str(val) if val is not None else None
         except OTPRequiredError:
@@ -127,20 +137,18 @@ class TradeRepublicAPIClient:
             self.session_token = "demo_token_xyz"
             return self.session_token
 
-        verify_payload = {
-            "code": code
-        }
+        verify_payload = {"code": code}
         await self._send(f"verify {self._msg_id} " + json.dumps(verify_payload))
         self._msg_id += 1
 
         resp = await self._recv()
         if not resp:
             raise InvalidAuthError("No verification response")
-        
+
         data = json.loads(resp)
         if "error" in data:
             raise InvalidAuthError(data["error"])
-            
+
         self.session_token = data.get("sessionToken", "valid_token")
         return self.session_token
 
@@ -151,7 +159,9 @@ class TradeRepublicAPIClient:
         if not self.session_token:
             return False
         try:
-            await self._send(f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolio"}))
+            await self._send(
+                f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolio"})
+            )
             self._msg_id += 1
             resp = await self._recv()
             if resp and "compactPortfolio" in resp:
@@ -162,6 +172,8 @@ class TradeRepublicAPIClient:
 
     async def fetch_portfolio_data(self) -> dict[str, Any]:
         """Fetch read-only portfolio metrics, cash balance, and savings plans."""
+        import time
+
         if self.phone_number.startswith("+4912345"):
             # Return high-fidelity mockup data for testing
             return {
@@ -177,18 +189,29 @@ class TradeRepublicAPIClient:
                 "savings_plans_count": 3,
                 "holdings": [
                     {"isin": "US88160R1014", "name": "Tesla Inc.", "value": 4500.0},
-                    {"isin": "US0378331005", "name": "Apple Inc.", "value": 9500.0}
-                ]
+                    {"isin": "US0378331005", "name": "Apple Inc.", "value": 9500.0},
+                ],
             }
 
         if not self.session_token:
             raise InvalidAuthError("Session token missing, authenticate first")
 
-        # In production, we subscribe to target topics and collect the first responses
-        results: dict[str, Any] = {}
+        results: dict[str, Any] = {
+            "net_value": 0.0,
+            "available_cash": 0.0,
+            "invested_capital": 0.0,
+            "savings_plans_count": 0,
+            "holdings": [],
+        }
+        portfolio_payload: dict[str, Any] = {}
+        prices: dict[str, float] = {}
+        ticker_subs: dict[int, dict[str, Any]] = {}
+
         try:
             # Sub to compactPortfolioByType
-            await self._send(f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolioByType"}))
+            await self._send(
+                f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolioByType"})
+            )
             sub_portfolio_id = self._msg_id
             self._msg_id += 1
 
@@ -197,44 +220,137 @@ class TradeRepublicAPIClient:
             sub_cash_id = self._msg_id
             self._msg_id += 1
 
-            # Wait and read stream updates
-            for _ in range(5):
+            # Sub to savingsPlans
+            await self._send(
+                f"sub {self._msg_id} " + json.dumps({"type": "savingsPlans"})
+            )
+            sub_savings_id = self._msg_id
+            self._msg_id += 1
+
+            # Phase 1: Read initial portfolio and cash data
+            start_time = time.time()
+            while time.time() - start_time < 3.0:
                 msg = await self._recv()
                 if not msg:
                     continue
-                # Parsing simple lines like "sub_id response_json"
-                parts = msg.split(" ", 1)
-                if len(parts) == 2:
-                    sub_id_str, payload_str = parts
-                    try:
-                        sub_id = int(sub_id_str)
-                        payload = json.loads(payload_str)
-                        if sub_id == sub_portfolio_id:
-                            results["net_value"] = payload.get("netValue", 0.0)
-                            results["invested_capital"] = payload.get("investedCapital", 0.0)
-                        elif sub_id == sub_cash_id:
-                            results["available_cash"] = payload.get("availableCash", 0.0)
-                    except ValueError:
-                        continue
+                parts = msg.split(" ", 2)
+                if len(parts) >= 3:
+                    sub_id_str, status, payload_str = parts
+                    if status == "A":
+                        try:
+                            sub_id = int(sub_id_str)
+                            payload = json.loads(payload_str)
+                            if sub_id == sub_portfolio_id:
+                                portfolio_payload = payload
+                            elif sub_id == sub_cash_id:
+                                if isinstance(payload, list) and len(payload) > 0:
+                                    results["available_cash"] = float(
+                                        payload[0].get("amount") or 0.0
+                                    )
+                                elif isinstance(payload, dict):
+                                    results["available_cash"] = float(
+                                        payload.get("amount")
+                                        or payload.get("availableCash")
+                                        or 0.0
+                                    )
+                            elif sub_id == sub_savings_id:
+                                results["savings_plans_count"] = len(
+                                    payload.get("savingsPlans") or []
+                                )
+                        except (ValueError, KeyError, TypeError):
+                            continue
 
-            # Fill defaults if missing
-            results.setdefault("net_value", 0.0)
-            results.setdefault("available_cash", 0.0)
-            results.setdefault("invested_capital", 0.0)
-            results["total_profit"] = results["net_value"] - results["invested_capital"]
+            # Parse positions and subscribe to tickers
+            positions = []
+            for cat in portfolio_payload.get("categories", []):
+                for pos in cat.get("positions", []):
+                    positions.append(pos)
+
+            if positions:
+                for pos in positions:
+                    isin = pos.get("isin")
+                    if isin:
+                        ticker_id = (
+                            isin
+                            if (
+                                pos.get("instrumentType") == "crypto"
+                                or isin.startswith("XF")
+                            )
+                            else f"{isin}.LSX"
+                        )
+                        await self._send(
+                            f"sub {self._msg_id} "
+                            + json.dumps({"type": "ticker", "id": ticker_id})
+                        )
+                        ticker_subs[self._msg_id] = pos
+                        self._msg_id += 1
+
+                # Phase 2: Read ticker prices
+                start_time = time.time()
+                while time.time() - start_time < 3.0 and len(prices) < len(positions):
+                    msg = await self._recv()
+                    if not msg:
+                        continue
+                    parts = msg.split(" ", 2)
+                    if len(parts) >= 3:
+                        sub_id_str, status, payload_str = parts
+                        if status == "A":
+                            try:
+                                sub_id = int(sub_id_str)
+                                payload = json.loads(payload_str)
+                                if sub_id in ticker_subs:
+                                    pos = ticker_subs[sub_id]
+                                    price = (
+                                        payload.get("last", {}).get("price")
+                                        or payload.get("bid", {}).get("price")
+                                        or payload.get("ask", {}).get("price")
+                                    )
+                                    if price is not None:
+                                        prices[pos["isin"]] = float(price)
+                            except (ValueError, KeyError, TypeError):
+                                continue
+
+            # Phase 3: Calculate totals
+            invested_capital = 0.0
+            securities_value = 0.0
+            holdings = []
+
+            for pos in positions:
+                isin = pos.get("isin")
+                name = pos.get("name", isin)
+                try:
+                    net_size = float(pos.get("netSize", 0.0))
+                    average_buy_in = float(pos.get("averageBuyIn", 0.0))
+                except (ValueError, TypeError):
+                    continue
+
+                pos_invested = net_size * average_buy_in
+                invested_capital += pos_invested
+
+                current_price = prices.get(isin, average_buy_in)
+                pos_value = net_size * current_price
+                securities_value += pos_value
+
+                holdings.append({"isin": isin, "name": name, "value": pos_value})
+
+            results["invested_capital"] = invested_capital
+            results["net_value"] = securities_value + results["available_cash"]
+            results["total_profit"] = securities_value - invested_capital
             results["total_profit_percent"] = (
-                (results["total_profit"] / results["invested_capital"] * 100)
-                if results["invested_capital"] > 0
+                (results["total_profit"] / invested_capital * 100)
+                if invested_capital > 0
                 else 0.0
             )
             results["exemption_total"] = 1000.00
             results["exemption_used"] = 0.00
-            results["savings_plans_count"] = 0
-            results["holdings"] = []
+            results["holdings"] = holdings
 
-            # Unsubscribe to clean up
+            # Cleanup subscriptions
             await self._send(f"unsub {sub_portfolio_id}")
             await self._send(f"unsub {sub_cash_id}")
+            await self._send(f"unsub {sub_savings_id}")
+            for sub_id in ticker_subs:
+                await self._send(f"unsub {sub_id}")
 
             return results
         except Exception as exc:

@@ -56,7 +56,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         self._force_update: bool = False
 
         # Persistent storage
-        self.store: storage.Store[Any] = storage.Store(hass, 1, f"{DOMAIN}_{self.phone_number.replace('+', '')}")
+        self.store: storage.Store[Any] = storage.Store(
+            hass, 1, f"{DOMAIN}_{self.phone_number.replace('+', '')}"
+        )
 
         interval_seconds = max(
             MIN_SCAN_INTERVAL,
@@ -97,7 +99,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         # Restart resistance
         if not self._force_update and self._last_success is not None:
             time_since = dt_util.now() - self._last_success
-            effective_interval = self.update_interval or timedelta(seconds=DEFAULT_SCAN_INTERVAL)
+            effective_interval = self.update_interval or timedelta(
+                seconds=DEFAULT_SCAN_INTERVAL
+            )
             if time_since < (effective_interval - timedelta(minutes=5)):
                 _LOGGER.info(
                     "Skipping Trade Republic update: last success was recent (%s)",
@@ -112,7 +116,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             is_first_fetch = self._last_success is None
             if not self._force_update and not is_first_fetch:
                 jitter = random.uniform(5.0, 30.0)
-                _LOGGER.debug("Waiting %.1f s jitter before Trade Republic API call", jitter)
+                _LOGGER.debug(
+                    "Waiting %.1f s jitter before Trade Republic API call", jitter
+                )
                 await asyncio.sleep(jitter)
             else:
                 self._force_update = False
@@ -132,8 +138,13 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     data = await client.fetch_portfolio_data()
                     await client.close()
             except InvalidAuthError as err:
-                _LOGGER.error("Authentication failed during update, raising ConfigEntryAuthFailed: %s", err)
-                raise ConfigEntryAuthFailed("Trade Republic authentication failed") from err
+                _LOGGER.error(
+                    "Authentication failed during update, raising ConfigEntryAuthFailed: %s",
+                    err,
+                )
+                raise ConfigEntryAuthFailed(
+                    "Trade Republic authentication failed"
+                ) from err
             except Exception as err:
                 self._consecutive_failures += 1
                 # Calculate backoff
@@ -143,8 +154,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     self._backoff_until = dt_util.now() + timedelta(hours=backoff_hours)
                 else:
                     backoff_minutes = min(240, self._consecutive_failures * 15)
-                    self._backoff_until = dt_util.now() + timedelta(minutes=backoff_minutes)
-                
+                    self._backoff_until = dt_util.now() + timedelta(
+                        minutes=backoff_minutes
+                    )
+
                 raise UpdateFailed(f"Trade Republic fetch failed: {err}") from err
 
             self._last_success = dt_util.now()

@@ -5,6 +5,7 @@ from custom_components.traderepublic.api import (
     TradeRepublicAPIClient,
 )
 
+
 @pytest.mark.asyncio
 async def test_demo_login():
     """Test login with demo phone number."""
