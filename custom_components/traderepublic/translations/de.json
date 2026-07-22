@@ -42,9 +42,10 @@
     "step": {
       "init": {
         "title": "Trade Republic Optionen",
-        "description": "Passe das Aktualisierungsintervall an.",
+        "description": "Passe das Aktualisierungsintervall und den Zinssatz an.",
         "data": {
-          "scan_interval": "Aktualisierungsintervall (Sekunden)"
+          "scan_interval": "Aktualisierungsintervall (Sekunden)",
+          "interest_rate": "Zinssatz (%)"
         }
       }
     }

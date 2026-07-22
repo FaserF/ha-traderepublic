@@ -376,13 +376,19 @@ class TradeRepublicAPIClient:
                 for pos in positions:
                     isin = pos.get("isin")
                     if isin:
+                        ex_ids = pos.get("exchangeIds")
+                        ex_suffix = (
+                            ex_ids[0]
+                            if isinstance(ex_ids, list) and ex_ids
+                            else "LSX"
+                        )
                         ticker_id = (
                             isin
                             if (
                                 pos.get("instrumentType") == "crypto"
                                 or isin.startswith("XF")
                             )
-                            else f"{isin}.LSX"
+                            else f"{isin}.{ex_suffix}"
                         )
                         await self._send(
                             f"sub {self._msg_id} "
@@ -406,14 +412,28 @@ class TradeRepublicAPIClient:
                                 payload = json.loads(payload_str)
                                 if sub_id in ticker_subs:
                                     pos = ticker_subs[sub_id]
-                                    price = (
-                                        payload.get("last", {}).get("price")
-                                        or payload.get("bid", {}).get("price")
-                                        or payload.get("ask", {}).get("price")
+
+                                    def _parse_p(val: Any) -> float | None:
+                                        if isinstance(val, (int, float)):
+                                            return float(val)
+                                        if isinstance(val, dict):
+                                            p = val.get("price")
+                                            if p is not None:
+                                                try:
+                                                    return float(p)
+                                                except (ValueError, TypeError):
+                                                    pass
+                                        return None
+
+                                    extracted_price = (
+                                        _parse_p(payload.get("last"))
+                                        or _parse_p(payload.get("bid"))
+                                        or _parse_p(payload.get("ask"))
+                                        or _parse_p(payload.get("price"))
                                     )
-                                    if price is not None:
-                                        prices[pos["isin"]] = float(price)
-                            except (ValueError, KeyError, TypeError):
+                                    if extracted_price is not None:
+                                        prices[pos["isin"]] = extracted_price
+                            except (ValueError, KeyError, TypeError, AttributeError):
                                 continue
 
             # Phase 3: Calculate totals

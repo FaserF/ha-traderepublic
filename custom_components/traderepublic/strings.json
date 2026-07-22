@@ -42,9 +42,10 @@
     "step": {
       "init": {
         "title": "Trade Republic Options",
-        "description": "Adjust the update interval.",
+        "description": "Adjust the update interval and interest rate settings.",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Update interval (seconds)",
+          "interest_rate": "Interest Rate (%)"
         }
       }
     }
