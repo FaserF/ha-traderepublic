@@ -28,7 +28,7 @@ body:
       label: Home Assistant Version
       description: |
         [![Open your Home Assistant info.](https://my.home-assistant.io/badges/info.svg)](https://my.home-assistant.io/redirect/info/)
-      placeholder: e.g. 2026.7.1
+      placeholder: e.g. 2026.7.3
     validations:
       required: true
 
