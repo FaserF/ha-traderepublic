@@ -229,7 +229,12 @@ class TradeRepublicAPIClient:
 
             # Phase 1: Read initial portfolio and cash data
             start_time = time.time()
-            while time.time() - start_time < 3.0:
+            has_portfolio = False
+            has_cash = False
+            has_savings = False
+            while time.time() - start_time < 5.0:
+                if has_portfolio and has_cash and has_savings:
+                    break
                 msg = await self._recv()
                 if not msg:
                     continue
@@ -242,6 +247,7 @@ class TradeRepublicAPIClient:
                             payload = json.loads(payload_str)
                             if sub_id == sub_portfolio_id:
                                 portfolio_payload = payload
+                                has_portfolio = True
                             elif sub_id == sub_cash_id:
                                 if isinstance(payload, list) and len(payload) > 0:
                                     results["available_cash"] = float(
@@ -253,10 +259,12 @@ class TradeRepublicAPIClient:
                                         or payload.get("availableCash")
                                         or 0.0
                                     )
+                                has_cash = True
                             elif sub_id == sub_savings_id:
                                 results["savings_plans_count"] = len(
                                     payload.get("savingsPlans") or []
                                 )
+                                has_savings = True
                         except (ValueError, KeyError, TypeError):
                             continue
 

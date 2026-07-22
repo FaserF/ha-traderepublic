@@ -97,7 +97,12 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             return self.data
 
         # Restart resistance
-        if not self._force_update and self._last_success is not None:
+        if (
+            not self._force_update
+            and self._last_success is not None
+            and self.data
+            and (self.data.get("net_value", 0.0) > 0.0 or self.data.get("available_cash", 0.0) > 0.0)
+        ):
             time_since = dt_util.now() - self._last_success
             effective_interval = self.update_interval or timedelta(
                 seconds=DEFAULT_SCAN_INTERVAL
