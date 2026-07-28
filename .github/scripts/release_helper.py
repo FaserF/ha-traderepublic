@@ -1,8 +1,11 @@
 import datetime
+import logging
 import os
 import re
 import subprocess
 import sys
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def run_cmd(cmd: list[str]) -> str:
@@ -35,8 +38,8 @@ def main():
     for path in ["custom_components/traderepublic/manifest.json", "pyproject.toml"]:
         try:
             run_cmd(["git", "checkout", "--", path])
-        except Exception:
-            pass
+        except subprocess.SubprocessError as err:
+            _LOGGER.warning("Failed to reset %s: %s", path, err)
 
     print(f"Calculated Version: {version}")
     tag = f"v{version}"
@@ -57,7 +60,8 @@ def main():
         raw_tags = run_cmd(
             ["git", "tag", "-l", "[0-9]*", "v[0-9]*", "--sort=-v:refname"]
         ).splitlines()
-    except Exception:
+    except subprocess.SubprocessError as err:
+        _LOGGER.warning("Failed to fetch git tags: %s", err)
         raw_tags = []
 
     semver_tags = []
@@ -95,7 +99,8 @@ def main():
     diff_range = f"{changelog_from}..HEAD" if changelog_from else "HEAD"
     try:
         total_commit_count = int(run_cmd(["git", "rev-list", "--count", diff_range]))
-    except Exception:
+    except (subprocess.SubprocessError, ValueError) as err:
+        _LOGGER.warning("Failed to count commits: %s", err)
         total_commit_count = 0
 
     # 4. Generate Changelog
@@ -117,7 +122,7 @@ def main():
             changelog_md = run_cmd(cl_args)
             if not changelog_md.strip():
                 changelog_md = "_No categorised changes detected._"
-        except Exception as e:
+        except (subprocess.SubprocessError, ValueError) as e:
             print(f"Error calling changelog generator: {e}")
 
     # 5. Channel decoration
@@ -135,8 +140,8 @@ def main():
         if changelog_from:
             diff_cmd.append(changelog_from)
         changed_files = run_cmd(diff_cmd).splitlines()
-    except Exception:
-        pass
+    except subprocess.SubprocessError as err:
+        _LOGGER.warning("Failed to run git diff: %s", err)
 
     changed_files = [f.strip() for f in changed_files if f.strip()]
     total_files = len(changed_files)
@@ -153,7 +158,7 @@ def main():
             integration_count += 1
         elif f.startswith("tests/"):
             test_count += 1
-        elif f.startswith(".github/") or f.startswith("scripts/"):
+        elif f.startswith((".github/", "scripts/")):
             ci_count += 1
         elif f.startswith("docs/") or f.endswith(".md"):
             docs_count += 1
@@ -173,8 +178,8 @@ def main():
                 re.MULTILINE,
             )
         )
-    except Exception:
-        pass
+    except subprocess.SubprocessError as err:
+        _LOGGER.warning("Failed to fetch git log for breaking changes check: %s", err)
 
     # Determine risk severity
     severity = "Low"

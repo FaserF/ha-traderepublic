@@ -1,6 +1,9 @@
+import logging
 import re
 import subprocess
 import sys
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def get_latest_tag():
@@ -14,7 +17,8 @@ def get_latest_tag():
         )
         tags = result.stdout.strip().split("\n")
         return tags[0] if tags and tags[0] else None
-    except Exception:
+    except subprocess.SubprocessError as err:
+        _LOGGER.warning("Failed to get latest git tag: %s", err)
         return None
 
 
@@ -61,6 +65,7 @@ def bump_version(current, bump_type, release_status, all_tags=None):
                 ["git", "tag", "--list", "--sort=-v:refname"],
                 capture_output=True,
                 text=True,
+                check=False,
             )
             for t in res.stdout.strip().split("\n"):
                 t = t.lstrip("v")
@@ -68,8 +73,8 @@ def bump_version(current, bump_type, release_status, all_tags=None):
                     s_major, s_minor, s_patch, _, _ = parse_version(t)
                     latest_stable = (s_major, s_minor, s_patch)
                     break
-        except Exception:
-            pass
+        except (subprocess.SubprocessError, ValueError, IndexError) as err:
+            _LOGGER.warning("Failed to fetch or parse git tags: %s", err)
 
     # Calculate Target Stable Core
     if bump_type == "major":
