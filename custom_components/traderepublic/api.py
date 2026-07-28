@@ -61,7 +61,13 @@ class TradeRepublicAPIClient:
                 "Origin": "https://app.traderepublic.com",
             }
             if self.session_token:
-                headers["Authorization"] = f"Bearer {self.session_token}"
+                clean_token = self.session_token.strip().strip('"').strip("'")
+                if clean_token.lower().startswith("bearer "):
+                    clean_token = clean_token[7:].strip()
+                headers["Authorization"] = f"Bearer {clean_token}"
+                headers["Cookie"] = (
+                    f"tr_session_id={clean_token}; sessionToken={clean_token}"
+                )
             try:
                 self.ws = await websockets.connect(
                     "wss://api.traderepublic.com",
@@ -123,19 +129,43 @@ class TradeRepublicAPIClient:
         try:
             resp = await self._recv()
             if not resp:
-                raise InvalidAuthError("No response from login")
-
-            data = json.loads(resp)
-            if "error" in data:
-                raise InvalidAuthError(data["error"])
-
-            # Often TR returns step 2 / OTP requirement
-            if data.get("status") == "otp_required" or "otp" in resp.lower():
                 raise OTPRequiredError("Verification code required")
 
-            val = data.get("sessionId")
-            return str(val) if val is not None else None
-        except OTPRequiredError:
+            payload_str = resp
+            status = ""
+            parts = resp.split(" ", 2)
+            if len(parts) == 3:
+                _, status, payload_str = parts
+            elif len(parts) == 2:
+                status, payload_str = parts
+
+            if status == "E":
+                raise InvalidAuthError(f"Login rejected: {payload_str}")
+
+            try:
+                data = json.loads(payload_str)
+            except (json.JSONDecodeError, TypeError):
+                data = {"raw": payload_str}
+
+            if isinstance(data, dict):
+                if "error" in data:
+                    raise InvalidAuthError(data["error"])
+
+                if (
+                    data.get("status") == "otp_required"
+                    or data.get("processId") is not None
+                    or "otp" in resp.lower()
+                    or "verify" in resp.lower()
+                ):
+                    raise OTPRequiredError("Verification code required")
+
+                val = data.get("sessionId") or data.get("sessionToken")
+                if val:
+                    self.session_token = str(val)
+                    return self.session_token
+
+            raise OTPRequiredError("Verification code required")
+        except (OTPRequiredError, InvalidAuthError):
             raise
         except Exception as exc:
             raise InvalidAuthError(f"Login failed: {exc}") from exc

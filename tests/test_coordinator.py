@@ -29,7 +29,9 @@ async def test_coordinator_update(hass: HomeAssistant, mock_config_entry) -> Non
 
 
 @pytest.mark.asyncio
-async def test_coordinator_pin_fallback(hass: HomeAssistant, mock_config_entry) -> None:
+async def test_coordinator_pin_fallback(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
     """Test that coordinator falls back to PIN re-auth when session token expires."""
     mock_config_entry.add_to_hass(hass)
     coordinator = TradeRepublicDataUpdateCoordinator(hass, mock_config_entry)
