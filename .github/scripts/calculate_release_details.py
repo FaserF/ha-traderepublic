@@ -90,7 +90,7 @@ def main():
     tags = [t.strip() for t in tags_raw.splitlines() if t.strip()]
     latest_tag = ""
     for t in tags:
-        if re.match(r"^v?\d+\.\d+\.\d+(?:?:b|-dev|-nightly)\d+)?$", t):
+        if re.match(r"^v?\d+\.\d+\.\d+(?:(?:b|-dev|-nightly)\d+)?$", t):
             latest_tag = t
             break
 
