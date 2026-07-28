@@ -87,6 +87,8 @@ class TradeRepublicAPIClient:
             )
             resp = await self._recv()
             if not resp or "connected" not in resp:
+                if resp and ("401" in resp or "unauth" in resp.lower() or "invalid" in resp.lower()):
+                    raise InvalidAuthError(f"Session token expired or invalid (handshake: {resp})")
                 raise CannotConnectError("Handshake failed")
         except Exception as exc:
             _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)

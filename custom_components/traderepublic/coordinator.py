@@ -133,26 +133,67 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 self._force_update = False
 
             # Run API call
+            session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
+            pin = self.config_entry.data.get(CONF_PIN, "")
             client = TradeRepublicAPIClient(
                 self.phone_number,
-                self.config_entry.data[CONF_PIN],
-                self.config_entry.data.get(CONF_SESSION_TOKEN),
+                pin,
+                session_token,
             )
             try:
                 async with asyncio.timeout(60):
-                    await client.connect()
-                    # Try logging in if we don't have a session or if it expired
-                    if not client.session_token:
-                        await client.login_step1()
-                    override_rate: float | None = None
-                    if CONF_INTEREST_RATE in self.config_entry.options:
-                        override_rate = float(
-                            self.config_entry.options[CONF_INTEREST_RATE]
+                    try:
+                        await client.connect()
+                        if not client.session_token and pin:
+                            await client.login_step1()
+                        override_rate: float | None = None
+                        if CONF_INTEREST_RATE in self.config_entry.options:
+                            override_rate = float(
+                                self.config_entry.options[CONF_INTEREST_RATE]
+                            )
+                        data = await client.fetch_portfolio_data(
+                            interest_rate=override_rate
                         )
-                    data = await client.fetch_portfolio_data(
-                        interest_rate=override_rate
-                    )
-                    await client.close()
+                    except InvalidAuthError as auth_err:
+                        if pin:
+                            _LOGGER.warning(
+                                "Session token expired or invalid; attempting re-authentication using PIN: %s",
+                                auth_err,
+                            )
+                            await client.close()
+                            client = TradeRepublicAPIClient(
+                                self.phone_number,
+                                pin,
+                                session_token=None,
+                            )
+                            await client.connect()
+                            await client.login_step1()
+                            override_rate = None
+                            if CONF_INTEREST_RATE in self.config_entry.options:
+                                override_rate = float(
+                                    self.config_entry.options[CONF_INTEREST_RATE]
+                                )
+                            data = await client.fetch_portfolio_data(
+                                interest_rate=override_rate
+                            )
+                        else:
+                            raise
+                    finally:
+                        await client.close()
+
+                    # Save updated session token if a new token was issued
+                    if (
+                        client.session_token
+                        and client.session_token != session_token
+                    ):
+                        _LOGGER.info("Updating config entry with new session token")
+                        self.hass.config_entries.async_update_entry(
+                            self.config_entry,
+                            data={
+                                **self.config_entry.data,
+                                CONF_SESSION_TOKEN: client.session_token,
+                            },
+                        )
             except InvalidAuthError as err:
                 _LOGGER.error(
                     "Authentication failed during update, raising ConfigEntryAuthFailed: %s",
