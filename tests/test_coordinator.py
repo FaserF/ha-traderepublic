@@ -41,11 +41,13 @@ async def test_coordinator_pin_fallback(hass: HomeAssistant, mock_config_entry) 
         hass, config_entries.ConfigEntryState.SETUP_IN_PROGRESS
     )
 
-    # Force invalid session token initially to trigger fallback
-    coordinator.config_entry.data = {
-        **coordinator.config_entry.data,
-        "session_token": "expired_token",
-    }
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        data={
+            **mock_config_entry.data,
+            "session_token": "expired_token",
+        },
+    )
 
     await coordinator.async_config_entry_first_refresh()
     assert coordinator.data["net_value"] == 15420.50
