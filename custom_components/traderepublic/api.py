@@ -170,8 +170,8 @@ class TradeRepublicAPIClient:
                 "compactPortfolioByType" in resp or " A " in resp or "connected" in resp
             ):
                 return True
-        except Exception:
-            pass
+        except Exception as err:
+            _LOGGER.debug("Login check failed: %s", err)
         return False
 
     async def fetch_portfolio_data(
@@ -369,10 +369,11 @@ class TradeRepublicAPIClient:
                             pass
 
             # Parse positions and subscribe to tickers
-            positions = []
-            for cat in portfolio_payload.get("categories", []):
-                for pos in cat.get("positions", []):
-                    positions.append(pos)
+            positions = [
+                pos
+                for cat in portfolio_payload.get("categories", [])
+                for pos in cat.get("positions", [])
+            ]
 
             if positions:
                 for pos in positions:

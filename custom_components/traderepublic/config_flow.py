@@ -103,7 +103,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_connect"
                 except InvalidAuthError:
                     errors["base"] = "invalid_auth"
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     _LOGGER.error("Unexpected error during login step 1: %s", exc)
                     errors["base"] = "unknown"
                 else:
@@ -167,7 +167,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                 except InvalidAuthError:
                     errors["base"] = "invalid_code"
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     _LOGGER.error("Unexpected error during MFA verification: %s", exc)
                     errors["base"] = "unknown"
 
@@ -237,7 +237,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "cannot_connect"
                 except InvalidAuthError:
                     errors["base"] = "invalid_auth"
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     _LOGGER.error("Unexpected error during reauth: %s", exc)
                     errors["base"] = "unknown"
 
