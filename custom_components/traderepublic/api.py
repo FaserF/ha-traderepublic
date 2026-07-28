@@ -170,7 +170,7 @@ class TradeRepublicAPIClient:
                 "compactPortfolioByType" in resp or " A " in resp or "connected" in resp
             ):
                 return True
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Login check failed: %s", err)
         return False
 
