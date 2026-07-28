@@ -5,29 +5,28 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from typing import Any
-import voluptuous as vol
 
+import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
 
-from .const import (
-    DOMAIN,
-    CONF_PHONE_NUMBER,
-    CONF_PIN,
-    CONF_SESSION_TOKEN,
-    CONF_SCAN_INTERVAL,
-    CONF_INTEREST_RATE,
-    DEFAULT_SCAN_INTERVAL,
-    DEFAULT_INTEREST_RATE,
-    MIN_SCAN_INTERVAL,
-)
-
 from .api import (
-    TradeRepublicAPIClient,
     CannotConnectError,
     InvalidAuthError,
     OTPRequiredError,
+    TradeRepublicAPIClient,
+)
+from .const import (
+    CONF_INTEREST_RATE,
+    CONF_PHONE_NUMBER,
+    CONF_PIN,
+    CONF_SCAN_INTERVAL,
+    CONF_SESSION_TOKEN,
+    DEFAULT_INTEREST_RATE,
+    DEFAULT_SCAN_INTERVAL,
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)

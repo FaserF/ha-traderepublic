@@ -1,7 +1,8 @@
 """Tests for Trade Republic sensor platform."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from homeassistant.core import HomeAssistant
 
 

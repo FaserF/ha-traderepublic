@@ -14,7 +14,9 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry  # type: ignore[import-untyped]
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,  # type: ignore[import-untyped]
+)
 
 from custom_components.traderepublic.const import (
     CONF_PHONE_NUMBER,

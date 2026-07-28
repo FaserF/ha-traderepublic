@@ -2,6 +2,7 @@
 
 import pytest
 from homeassistant.core import HomeAssistant
+
 from custom_components.traderepublic.coordinator import (
     TradeRepublicDataUpdateCoordinator,
 )
@@ -35,6 +36,7 @@ async def test_coordinator_pin_fallback(hass: HomeAssistant, mock_config_entry) 
     coordinator.phone_number = "+4912345"
 
     from homeassistant import config_entries
+
     mock_config_entry.mock_state(
         hass, config_entries.ConfigEntryState.SETUP_IN_PROGRESS
     )

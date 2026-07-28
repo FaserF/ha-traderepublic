@@ -9,8 +9,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from typing import Any
 import ssl
+from typing import Any
+
 import websockets
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,13 +88,19 @@ class TradeRepublicAPIClient:
             )
             resp = await self._recv()
             if not resp or "connected" not in resp:
-                if resp and ("401" in resp or "unauth" in resp.lower() or "invalid" in resp.lower()):
-                    raise InvalidAuthError(f"Session token expired or invalid (handshake: {resp})")
+                if resp and (
+                    "401" in resp
+                    or "unauth" in resp.lower()
+                    or "invalid" in resp.lower()
+                ):
+                    raise InvalidAuthError(
+                        f"Session token expired or invalid (handshake: {resp})"
+                    )
                 raise CannotConnectError("Handshake failed")
         except Exception as exc:
             _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)
             if "401" in str(exc) or (
-                hasattr(exc, "status_code") and getattr(exc, "status_code") == 401
+                hasattr(exc, "status_code") and exc.status_code == 401
             ):
                 raise InvalidAuthError(
                     f"Session token expired or invalid (HTTP 401): {exc}"

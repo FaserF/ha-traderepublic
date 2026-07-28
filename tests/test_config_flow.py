@@ -1,10 +1,12 @@
 """Tests for Trade Republic config flow."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
-from custom_components.traderepublic.const import DOMAIN, CONF_PHONE_NUMBER, CONF_PIN
+
+from custom_components.traderepublic.const import CONF_PHONE_NUMBER, CONF_PIN, DOMAIN
 
 
 @pytest.mark.asyncio

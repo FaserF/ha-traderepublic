@@ -1,6 +1,7 @@
 """Tests for Trade Republic API client."""
 
 import pytest
+
 from custom_components.traderepublic.api import (
     TradeRepublicAPIClient,
 )

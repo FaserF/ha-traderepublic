@@ -9,7 +9,6 @@ from homeassistant.core import HomeAssistant
 from .const import DOMAIN
 from .coordinator import TradeRepublicDataUpdateCoordinator
 
-
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 

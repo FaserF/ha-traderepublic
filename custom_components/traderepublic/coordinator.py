@@ -12,29 +12,29 @@ Enforces:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta
 import logging
 import random
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import storage
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers import storage
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
+from .api import InvalidAuthError, TradeRepublicAPIClient
 from .const import (
+    CONF_INTEREST_RATE,
     CONF_PHONE_NUMBER,
     CONF_PIN,
-    CONF_SESSION_TOKEN,
     CONF_SCAN_INTERVAL,
-    CONF_INTEREST_RATE,
+    CONF_SESSION_TOKEN,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
 )
-from .api import TradeRepublicAPIClient, InvalidAuthError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -182,10 +182,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         await client.close()
 
                     # Save updated session token if a new token was issued
-                    if (
-                        client.session_token
-                        and client.session_token != session_token
-                    ):
+                    if client.session_token and client.session_token != session_token:
                         _LOGGER.info("Updating config entry with new session token")
                         self.hass.config_entries.async_update_entry(
                             self.config_entry,
