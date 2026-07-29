@@ -74,12 +74,29 @@ class TradeRepublicAPIClient:
                     ssl=ssl_context,
                     additional_headers=headers,
                 )
-            except TypeError:
-                self.ws = await websockets.connect(
-                    "wss://api.traderepublic.com",
-                    ssl=ssl_context,
-                    extra_headers=headers,
-                )
+            except Exception as first_exc:
+                if self.session_token and (
+                    "401" in str(first_exc)
+                    or getattr(first_exc, "status_code", None) == 401
+                ):
+                    cookie_headers = {
+                        "User-Agent": headers["User-Agent"],
+                        "Origin": headers["Origin"],
+                        "Cookie": (
+                            f"tr_session_id={clean_token};"
+                            f" sessionToken={clean_token}"
+                        ),
+                    }
+                    try:
+                        self.ws = await websockets.connect(
+                            "wss://api.traderepublic.com",
+                            ssl=ssl_context,
+                            additional_headers=cookie_headers,
+                        )
+                    except Exception:  # noqa: BLE001
+                        raise first_exc from None
+                else:
+                    raise
             # Handshake
             await self._send(
                 "connect 26 "

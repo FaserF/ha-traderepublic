@@ -200,24 +200,31 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors[CONF_PIN] = "invalid_pin"
 
             if not errors:
+                clean_token = (
+                    session_token.strip().strip('"').strip("'")
+                    if session_token
+                    else None
+                )
                 self._client = TradeRepublicAPIClient(
-                    self._phone_number or "", self._pin or "", session_token
+                    self._phone_number or "", self._pin or "", clean_token
                 )
                 try:
                     await self._client.connect()
-                    if session_token:
+                    if clean_token:
                         if await self._client.verify_session():
                             entry = self.hass.config_entries.async_get_entry(
                                 self.context["entry_id"]
                             )
                             if entry:
+                                updated_data = {
+                                    **entry.data,
+                                    CONF_SESSION_TOKEN: clean_token,
+                                }
+                                if self._pin:
+                                    updated_data[CONF_PIN] = self._pin
                                 self.hass.config_entries.async_update_entry(
                                     entry,
-                                    data={
-                                        **entry.data,
-                                        CONF_PIN: self._pin or "",
-                                        CONF_SESSION_TOKEN: session_token,
-                                    },
+                                    data=updated_data,
                                 )
                                 await self.hass.config_entries.async_reload(
                                     entry.entry_id
