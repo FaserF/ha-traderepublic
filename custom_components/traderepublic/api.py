@@ -83,8 +83,7 @@ class TradeRepublicAPIClient:
                         "User-Agent": headers["User-Agent"],
                         "Origin": headers["Origin"],
                         "Cookie": (
-                            f"tr_session_id={clean_token};"
-                            f" sessionToken={clean_token}"
+                            f"tr_session_id={clean_token}; sessionToken={clean_token}"
                         ),
                     }
                     try:
