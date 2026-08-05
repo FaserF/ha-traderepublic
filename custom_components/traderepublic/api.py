@@ -209,20 +209,35 @@ class TradeRepublicAPIClient:
 
     async def verify_session(self) -> bool:
         """Verify if the session token is valid."""
+        import time
+
         if self.phone_number.startswith("+4912345"):
             return True
         if not self.session_token:
             return False
         try:
+            sub_id = self._msg_id
             await self._send(
-                f"sub {self._msg_id} " + json.dumps({"type": "compactPortfolioByType"})
+                f"sub {sub_id} " + json.dumps({"type": "compactPortfolioByType"})
             )
             self._msg_id += 1
-            resp = await self._recv()
-            if resp and (
-                "compactPortfolioByType" in resp or " A " in resp or "connected" in resp
-            ):
-                return True
+
+            start_time = time.time()
+            while time.time() - start_time < 4.0:
+                resp = await self._recv()
+                if not resp:
+                    continue
+                parts = resp.split(" ", 2)
+                if len(parts) >= 3:
+                    sub_id_str, status, payload_str = parts
+                    if sub_id_str == str(sub_id):
+                        if status == "A":
+                            return True
+                        if status == "E":
+                            _LOGGER.warning(
+                                "verify_session rejected token: %s", payload_str
+                            )
+                            return False
         except Exception as err:  # noqa: BLE001
             _LOGGER.debug("Login check failed: %s", err)
         return False
@@ -414,12 +429,29 @@ class TradeRepublicAPIClient:
                     elif status == "E":
                         try:
                             sub_id = int(sub_id_str)
-                            if sub_id == sub_card_id:
+                            if sub_id in (sub_portfolio_id, sub_cash_id):
+                                _LOGGER.error(
+                                    "Trade Republic core subscription %s failed: %s",
+                                    sub_id_str,
+                                    payload_str,
+                                )
+                                raise InvalidAuthError(
+                                    f"Session token expired or invalid (subscription error): {payload_str}"
+                                )
+                            elif sub_id == sub_card_id:
                                 has_card = True
                             elif sub_id == sub_timeline_id:
                                 has_timeline = True
+                            elif sub_id == sub_savings_id:
+                                has_savings = True
                         except ValueError:
                             pass
+
+            if not has_portfolio and not has_cash:
+                _LOGGER.error("No portfolio or cash data received from Trade Republic")
+                raise InvalidAuthError(
+                    "Session token expired or invalid (no portfolio/cash data received)"
+                )
 
             # Parse positions and subscribe to tickers
             positions = [
@@ -570,6 +602,8 @@ class TradeRepublicAPIClient:
                 await self._send(f"unsub {sub_id}")
 
             return results
+        except (InvalidAuthError, OTPRequiredError):
+            raise
         except Exception as exc:
             _LOGGER.error("Failed to fetch Trade Republic portfolio data: %s", exc)
             raise TradeRepublicAPIError(f"Data fetch failed: {exc}") from exc
