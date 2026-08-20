@@ -130,7 +130,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         addon_client = AddonClient(default_host=host, default_port=port)
         try:
-            candidate, data = await addon_client.fetch_session(preferred_host=host, port=port)
+            candidate, data = await addon_client.fetch_session(
+                preferred_host=host, port=port
+            )
             if candidate and data:
                 token = data.get("session_token")
                 phone = data.get("phone_number") or ""

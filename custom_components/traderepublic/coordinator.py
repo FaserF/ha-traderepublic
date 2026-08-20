@@ -148,9 +148,13 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             if auth_mode == AUTH_MODE_ADDON:
                 from .addon_client import AddonClient
 
-                addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
+                addon_client = AddonClient(
+                    default_host=addon_host, default_port=addon_port
+                )
                 try:
-                    cand, addon_data = await addon_client.fetch_session(preferred_host=addon_host, port=addon_port)
+                    cand, addon_data = await addon_client.fetch_session(
+                        preferred_host=addon_host, port=addon_port
+                    )
                     if cand and addon_data:
                         latest_token = addon_data.get("session_token")
                         if latest_token and latest_token != session_token:
@@ -194,10 +198,18 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 if auth_mode == AUTH_MODE_ADDON:
                     from .addon_client import AddonClient
 
-                    addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
+                    addon_client = AddonClient(
+                        default_host=addon_host, default_port=addon_port
+                    )
                     try:
-                        rhost, refreshed_token = await addon_client.trigger_refresh(preferred_host=addon_host, port=addon_port)
-                        if rhost and refreshed_token and refreshed_token != session_token:
+                        rhost, refreshed_token = await addon_client.trigger_refresh(
+                            preferred_host=addon_host, port=addon_port
+                        )
+                        if (
+                            rhost
+                            and refreshed_token
+                            and refreshed_token != session_token
+                        ):
                             _LOGGER.info(
                                 "Successfully refreshed session token from Add-on (%s), retrying connection...",
                                 rhost,
@@ -273,12 +285,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 await client.login_step1()
             override_rate: float | None = None
             if CONF_INTEREST_RATE in self.config_entry.options:
-                override_rate = float(
-                    self.config_entry.options[CONF_INTEREST_RATE]
-                )
-            data = await client.fetch_portfolio_data(
-                interest_rate=override_rate
-            )
+                override_rate = float(self.config_entry.options[CONF_INTEREST_RATE])
+            data = await client.fetch_portfolio_data(interest_rate=override_rate)
             await client.close()
             return data
-
