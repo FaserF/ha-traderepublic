@@ -66,7 +66,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, discovery_info: HassioServiceInfo
     ) -> ConfigFlowResult:
         """Handle Home Assistant Supervisor auto-discovery."""
-        _LOGGER.info("Supervisor auto-discovered Trade Republic Addon: %s", discovery_info)
+        _LOGGER.info(
+            "Supervisor auto-discovered Trade Republic Addon: %s", discovery_info
+        )
         self._auth_mode = AUTH_MODE_ADDON
         self._addon_host = discovery_info.config.get("host", DEFAULT_ADDON_HOST)
         self._addon_port = int(discovery_info.config.get("port", DEFAULT_ADDON_PORT))
@@ -81,7 +83,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._addon_host = discovery_info.get("host", DEFAULT_ADDON_HOST)
         self._addon_port = int(discovery_info.get("port", DEFAULT_ADDON_PORT))
         return await self._async_connect_addon(self._addon_host, self._addon_port)
-
 
     async def async_step_addon_confirm(
         self, user_input: dict[str, Any] | None = None
@@ -164,10 +165,14 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 await test_client.close()
                                 if is_valid:
                                     # Addon is logged in and session is verified -> complete setup!
-                                    await self.async_set_unique_id(phone.lower() if phone else "traderepublic")
+                                    await self.async_set_unique_id(
+                                        phone.lower() if phone else "traderepublic"
+                                    )
                                     self._abort_if_unique_id_configured()
                                     return self.async_create_entry(
-                                        title=f"Trade Republic ({phone})" if phone else "Trade Republic",
+                                        title=f"Trade Republic ({phone})"
+                                        if phone
+                                        else "Trade Republic",
                                         data={
                                             CONF_PHONE_NUMBER: phone,
                                             CONF_PIN: "",
@@ -178,7 +183,10 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                         },
                                     )
                             except Exception as test_err:  # noqa: BLE001
-                                _LOGGER.info("Addon token verification failed (%s) -> prompting login in HA", test_err)
+                                _LOGGER.info(
+                                    "Addon token verification failed (%s) -> prompting login in HA",
+                                    test_err,
+                                )
 
                         # Addon reachable but session missing or expired -> seamlessly forward to login prompt in HA
                         self._addon_host = candidate
@@ -211,7 +219,13 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Trigger login on Trade Republic App directly from HA integration."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            raw_phone = user_input.get(CONF_PHONE_NUMBER, "").strip().replace(" ", "").replace("-", "").replace("/", "")
+            raw_phone = (
+                user_input.get(CONF_PHONE_NUMBER, "")
+                .strip()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("/", "")
+            )
             if raw_phone.startswith("00"):
                 self._phone_number = "+" + raw_phone[2:]
             elif raw_phone.startswith("+"):
@@ -222,16 +236,18 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self._phone_number = "+" + raw_phone
 
             digits_only = "".join(filter(str.isdigit, self._phone_number))
-            if not self._phone_number.startswith("+") or not (7 <= len(digits_only) <= 15):
+            if not self._phone_number.startswith("+") or not (
+                7 <= len(digits_only) <= 15
+            ):
                 errors[CONF_PHONE_NUMBER] = "invalid_phone"
 
             self._pin = (user_input.get(CONF_PIN) or "").strip()
             if not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
                 errors[CONF_PIN] = "invalid_pin"
 
-
             if not errors:
                 import aiohttp
+
                 url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
                 try:
                     async with (
@@ -257,7 +273,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="addon_login",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_PHONE_NUMBER, default=self._phone_number or ""): str,
+                    vol.Required(
+                        CONF_PHONE_NUMBER, default=self._phone_number or ""
+                    ): str,
                     vol.Required(CONF_PIN): str,
                 }
             ),
@@ -272,6 +290,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             code = user_input.get("code", "").strip()
             import aiohttp
+
             url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
             try:
                 async with (
@@ -324,7 +343,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
             if self._auth_mode == AUTH_MODE_ADDON:
-                return await self._async_connect_addon(self._addon_host, self._addon_port)
+                return await self._async_connect_addon(
+                    self._addon_host, self._addon_port
+                )
             return await self.async_step_manual()
 
         return self.async_show_form(
@@ -348,7 +369,13 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            raw_phone = (user_input.get(CONF_PHONE_NUMBER) or "").strip().replace(" ", "").replace("-", "").replace("/", "")
+            raw_phone = (
+                (user_input.get(CONF_PHONE_NUMBER) or "")
+                .strip()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("/", "")
+            )
             if raw_phone.startswith("00"):
                 self._phone_number = "+" + raw_phone[2:]
             elif raw_phone.startswith("+"):
@@ -362,17 +389,25 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             session_token = user_input.get(CONF_SESSION_TOKEN)
 
             digits_only = "".join(filter(str.isdigit, self._phone_number))
-            if not self._phone_number.startswith("+") or not (7 <= len(digits_only) <= 15):
+            if not self._phone_number.startswith("+") or not (
+                7 <= len(digits_only) <= 15
+            ):
                 errors[CONF_PHONE_NUMBER] = "invalid_phone"
             else:
                 await self.async_set_unique_id(self._phone_number.lower())
                 self._abort_if_unique_id_configured()
 
-                if self._pin and (not self._pin.isdigit() or not (4 <= len(self._pin) <= 6)):
+                if self._pin and (
+                    not self._pin.isdigit() or not (4 <= len(self._pin) <= 6)
+                ):
                     errors[CONF_PIN] = "invalid_pin"
 
                 if not errors:
-                    clean_token = session_token.strip().strip('"').strip("'") if session_token else None
+                    clean_token = (
+                        session_token.strip().strip('"').strip("'")
+                        if session_token
+                        else None
+                    )
                     self._client = TradeRepublicAPIClient(
                         self._phone_number, self._pin or "", clean_token
                     )
@@ -428,8 +463,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
-
-
 
     async def async_step_mfa(
         self, user_input: dict[str, Any] | None = None
@@ -490,10 +523,24 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Confirm reauth."""
         errors: dict[str, str] = {}
-        entry = self.hass.config_entries.async_get_entry(self.context.get("entry_id", ""))
-        auth_mode = entry.data.get(CONF_AUTH_MODE, AUTH_MODE_MANUAL) if entry else AUTH_MODE_MANUAL
-        self._addon_host = entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST) if entry else DEFAULT_ADDON_HOST
-        self._addon_port = entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT) if entry else DEFAULT_ADDON_PORT
+        entry = self.hass.config_entries.async_get_entry(
+            self.context.get("entry_id", "")
+        )
+        auth_mode = (
+            entry.data.get(CONF_AUTH_MODE, AUTH_MODE_MANUAL)
+            if entry
+            else AUTH_MODE_MANUAL
+        )
+        self._addon_host = (
+            entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
+            if entry
+            else DEFAULT_ADDON_HOST
+        )
+        self._addon_port = (
+            entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
+            if entry
+            else DEFAULT_ADDON_PORT
+        )
 
         # If in App mode, try auto-refreshing from App or forward directly to in-HA login flow
         if auth_mode == AUTH_MODE_ADDON:
@@ -503,11 +550,14 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return await self.async_step_addon_login()
 
                 import aiohttp
+
                 url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
                 try:
                     async with (
                         aiohttp.ClientSession() as session,
-                        session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp,
+                        session.get(
+                            url, timeout=aiohttp.ClientTimeout(total=5)
+                        ) as resp,
                     ):
                         if resp.status == 200:
                             data = await resp.json()
@@ -517,12 +567,16 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                     entry,
                                     data={**entry.data, CONF_SESSION_TOKEN: token},
                                 )
-                                await self.hass.config_entries.async_reload(entry.entry_id)
+                                await self.hass.config_entries.async_reload(
+                                    entry.entry_id
+                                )
                                 return self.async_abort(reason="reauth_successful")
                         # If no session present in addon, forward user directly to in-HA login form
                         return await self.async_step_addon_login()
                 except Exception as exc:  # noqa: BLE001
-                    _LOGGER.error("Failed to connect to Trade Republic App during reauth: %s", exc)
+                    _LOGGER.error(
+                        "Failed to connect to Trade Republic App during reauth: %s", exc
+                    )
                     return await self.async_step_addon_login()
 
             return self.async_show_form(
@@ -543,7 +597,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self._pin = user_input.get(CONF_PIN)
             session_token = user_input.get(CONF_SESSION_TOKEN)
-
 
             # PIN validation check: must be 4-6 digits, only numbers
             if self._pin:
@@ -623,14 +676,21 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
             if user_input.get("trigger_reauth"):
                 return await self.hass.config_entries.flow.async_init(
                     DOMAIN,
-                    context={"source": config_entries.SOURCE_REAUTH, "entry_id": self.config_entry.entry_id},
+                    context={
+                        "source": config_entries.SOURCE_REAUTH,
+                        "entry_id": self.config_entry.entry_id,
+                    },
                     data=self.config_entry.data,
                 )
             return self.async_create_entry(
                 title="",
                 data={
-                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                    CONF_INTEREST_RATE: user_input.get(CONF_INTEREST_RATE, DEFAULT_INTEREST_RATE),
+                    CONF_SCAN_INTERVAL: user_input.get(
+                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                    ),
+                    CONF_INTEREST_RATE: user_input.get(
+                        CONF_INTEREST_RATE, DEFAULT_INTEREST_RATE
+                    ),
                 },
             )
 

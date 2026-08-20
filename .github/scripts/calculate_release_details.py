@@ -321,7 +321,6 @@ def main():
             f"*📖 [Documentation]({docs_url})  ·  🐛 [Report an Issue](https://github.com/{repo}/issues/new/choose)  ·  📦 [All Releases](https://github.com/{repo}/releases)*",
         ]
 
-
     body = "\n".join(body_parts)
     with open("release_body.md", "w", encoding="utf-8") as f:
         f.write(body)

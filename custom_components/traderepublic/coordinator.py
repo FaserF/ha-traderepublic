@@ -147,6 +147,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             # Auto-sync token from addon if in addon mode
             if auth_mode == AUTH_MODE_ADDON:
                 import aiohttp
+
                 try:
                     url = f"http://{addon_host}:{addon_port}/api/v1/session"
                     async with (
@@ -160,7 +161,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                             latest_token = addon_data.get("session_token")
 
                             if latest_token and latest_token != session_token:
-                                _LOGGER.info("Fetched updated session token from Trade Republic Addon")
+                                _LOGGER.info(
+                                    "Fetched updated session token from Trade Republic Addon"
+                                )
                                 session_token = latest_token
                                 self.hass.config_entries.async_update_entry(
                                     self.config_entry,
@@ -208,18 +211,25 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 # If connected via Addon, attempt an immediate token refresh via browser before failing
                 if auth_mode == AUTH_MODE_ADDON:
                     import aiohttp
+
                     try:
-                        _LOGGER.info("Attempting automatic session refresh via Trade Republic Add-on...")
+                        _LOGGER.info(
+                            "Attempting automatic session refresh via Trade Republic Add-on..."
+                        )
                         url = f"http://{addon_host}:{addon_port}/api/v1/refresh"
                         async with (
                             aiohttp.ClientSession() as http_session,
-                            http_session.post(url, timeout=aiohttp.ClientTimeout(total=8)) as refresh_resp,
+                            http_session.post(
+                                url, timeout=aiohttp.ClientTimeout(total=8)
+                            ) as refresh_resp,
                         ):
                             if refresh_resp.status == 200:
                                 refresh_data = await refresh_resp.json()
                                 refreshed_token = refresh_data.get("session_token")
                                 if refreshed_token and refreshed_token != session_token:
-                                    _LOGGER.info("Successfully refreshed session token from Add-on, retrying connection...")
+                                    _LOGGER.info(
+                                        "Successfully refreshed session token from Add-on, retrying connection..."
+                                    )
                                     self.hass.config_entries.async_update_entry(
                                         self.config_entry,
                                         data={
@@ -235,15 +245,24 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                     async with asyncio.timeout(60):
                                         await client.connect()
                                         override_rate = (
-                                            float(self.config_entry.options[CONF_INTEREST_RATE])
-                                            if CONF_INTEREST_RATE in self.config_entry.options
+                                            float(
+                                                self.config_entry.options[
+                                                    CONF_INTEREST_RATE
+                                                ]
+                                            )
+                                            if CONF_INTEREST_RATE
+                                            in self.config_entry.options
                                             else None
                                         )
-                                        data = await client.fetch_portfolio_data(interest_rate=override_rate)
+                                        data = await client.fetch_portfolio_data(
+                                            interest_rate=override_rate
+                                        )
                                         await client.close()
                                         return data
                     except Exception as refresh_err:  # noqa: BLE001
-                        _LOGGER.debug("Add-on auto-refresh attempt failed: %s", refresh_err)
+                        _LOGGER.debug(
+                            "Add-on auto-refresh attempt failed: %s", refresh_err
+                        )
 
                 _LOGGER.error(
                     "Trade Republic authentication failed (%s). Re-authentication required.",
@@ -251,6 +270,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 try:
                     from homeassistant.helpers import issue_registry as ir
+
                     ir.async_create_issue(
                         self.hass,
                         DOMAIN,
@@ -266,8 +286,6 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 raise ConfigEntryAuthFailed(
                     "Trade Republic authentication failed. Please re-authenticate."
                 ) from err
-
-
 
             except Exception as err:
                 self._consecutive_failures += 1

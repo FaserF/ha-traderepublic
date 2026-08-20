@@ -72,4 +72,3 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
     )
     assert result["type"] == "form"
     assert result["step_id"] == "addon_confirm"
-

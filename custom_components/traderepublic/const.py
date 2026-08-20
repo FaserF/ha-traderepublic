@@ -27,7 +27,6 @@ DEFAULT_ADDON_HOST = "127.0.0.1"
 DEFAULT_ADDON_PORT = 8095
 
 
-
 # API WebSocket URL
 TR_WS_URL = "wss://api.traderepublic.com"
 

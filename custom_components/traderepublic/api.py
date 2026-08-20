@@ -108,9 +108,7 @@ class TradeRepublicAPIClient:
 
             if self.session_token:
                 handshake_payload["token"] = clean_token
-            await self._send(
-                "connect 26 " + json.dumps(handshake_payload)
-            )
+            await self._send("connect 26 " + json.dumps(handshake_payload))
             resp = await self._recv()
             if not resp or "connected" not in resp:
                 if resp and (
