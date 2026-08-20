@@ -50,9 +50,15 @@ async def test_config_flow_addon(hass: HomeAssistant) -> None:
             },
         )
 
-    with patch(
-        "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
-        new=mock_connect_addon,
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
+            new=mock_connect_addon,
+        ),
+        patch(
+            "custom_components.traderepublic.async_setup_entry",
+            return_value=True,
+        ),
     ):
         result3 = await hass.config_entries.flow.async_configure(
             result2["flow_id"],
@@ -77,7 +83,6 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
     )
 
     async def mock_connect_addon(self, host, port):
-
         await self.async_set_unique_id("+491701234567")
         return self.async_create_entry(
             title="Trade Republic (+491701234567)",
@@ -91,9 +96,15 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
             },
         )
 
-    with patch(
-        "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
-        new=mock_connect_addon,
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
+            new=mock_connect_addon,
+        ),
+        patch(
+            "custom_components.traderepublic.async_setup_entry",
+            return_value=True,
+        ),
     ):
         result = await hass.config_entries.flow.async_init(
             DOMAIN,
@@ -102,3 +113,4 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         )
         assert result["type"] == "create_entry"
         assert result["title"] == "Trade Republic (+491701234567)"
+
