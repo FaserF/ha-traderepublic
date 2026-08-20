@@ -113,4 +113,3 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         )
         assert result["type"] == "create_entry"
         assert result["title"] == "Trade Republic (+491701234567)"
-
