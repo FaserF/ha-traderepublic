@@ -697,12 +697,12 @@ class AddonClient:
             url = f"http://{host}:{target_port}/api/v1/session"
             try:
                 async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=4)
+                    url, timeout=aiohttp.ClientTimeout(total=3)
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         return host, data
-            except Exception as exc:  # noqa: BLE001
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
                 _LOGGER.debug("Could not reach addon at %s: %s", url, exc)
                 continue
 
@@ -726,14 +726,14 @@ class AddonClient:
                     host,
                 )
                 async with session.post(
-                    url, timeout=aiohttp.ClientTimeout(total=8)
+                    url, timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
                         token = data.get("session_token")
                         if token:
                             return host, token
-            except Exception as exc:  # noqa: BLE001
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
                 _LOGGER.debug("Addon refresh attempt failed on %s: %s", host, exc)
                 continue
 
