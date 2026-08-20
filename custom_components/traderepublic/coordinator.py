@@ -61,6 +61,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         self._consecutive_failures: int = 0
         self._last_success: datetime | None = None
         self._force_update: bool = False
+        self._has_fetched_live: bool = False
 
         # Persistent storage
         self.store: storage.Store[Any] = storage.Store(
@@ -145,9 +146,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             finally:
                 await addon_client.close()
 
-        # Restart resistance (only if update is not forced and we are not in auth failure)
+        # Restart resistance (only if update is not forced and we already completed a live fetch in this lifecycle)
         if (
             not self._force_update
+            and self._has_fetched_live
             and self._last_success is not None
             and self.data
             and (
@@ -275,6 +277,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
 
             self._last_success = dt_util.now()
             self._consecutive_failures = 0
+            self._has_fetched_live = True
             data["last_success"] = self._last_success.isoformat()
             await self.store.async_save(data)
             return data
