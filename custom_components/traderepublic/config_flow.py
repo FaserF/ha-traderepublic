@@ -585,50 +585,50 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if action == "login":
                     return await self.async_step_addon_login()
 
-                import aiohttp
-
-                url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
+                addon_client = AddonClient(
+                    default_host=self._addon_host, default_port=self._addon_port
+                )
                 try:
-                    async with (
-                        aiohttp.ClientSession() as session,
-                        session.get(
-                            url, timeout=aiohttp.ClientTimeout(total=5)
-                        ) as resp,
-                    ):
-                        if resp.status == 200:
-                            data = await resp.json()
-                            token = data.get("session_token")
-                            if token and entry:
-                                # Verify token is actually valid before accepting it
-                                client = TradeRepublicAPIClient(
-                                    phone_number=entry.data.get(CONF_PHONE_NUMBER, ""),
-                                    pin=entry.data.get(CONF_PIN, ""),
-                                    session_token=token,
+                    candidate, data = await addon_client.fetch_session(
+                        preferred_host=self._addon_host, port=self._addon_port
+                    )
+                    if candidate and data:
+                        token = data.get("session_token")
+                        if token and entry:
+                            # Verify token is actually valid before accepting it
+                            client = TradeRepublicAPIClient(
+                                phone_number=entry.data.get(CONF_PHONE_NUMBER, ""),
+                                pin=entry.data.get(CONF_PIN, ""),
+                                session_token=token,
+                            )
+                            try:
+                                valid = await client.verify_session()
+                            except Exception:  # noqa: BLE001
+                                valid = False
+                            if not valid:
+                                _LOGGER.warning(
+                                    "Addon session token is present but invalid — prompting re-login"
                                 )
-                                try:
-                                    valid = await client.verify_session()
-                                except Exception:  # noqa: BLE001
-                                    valid = False
-                                if not valid:
-                                    _LOGGER.warning(
-                                        "Addon session token is present but invalid — prompting re-login"
-                                    )
-                                    return await self.async_step_addon_login()
-                                self.hass.config_entries.async_update_entry(
-                                    entry,
-                                    data={**entry.data, CONF_SESSION_TOKEN: token},
-                                )
-                                await self.hass.config_entries.async_reload(
-                                    entry.entry_id
-                                )
-                                return self.async_abort(reason="reauth_successful")
-                        # If no valid session in addon, forward user directly to in-HA login form
-                        return await self.async_step_addon_login()
+                                return await self.async_step_addon_login()
+                            self.hass.config_entries.async_update_entry(
+                                entry,
+                                data={
+                                    **entry.data,
+                                    CONF_SESSION_TOKEN: token,
+                                    CONF_ADDON_HOST: candidate,
+                                },
+                            )
+                            await self.hass.config_entries.async_reload(entry.entry_id)
+                            return self.async_abort(reason="reauth_successful")
+                    # If no valid session in addon, forward user directly to in-HA login form
+                    return await self.async_step_addon_login()
                 except Exception as exc:  # noqa: BLE001
                     _LOGGER.error(
                         "Failed to connect to Trade Republic App during reauth: %s", exc
                     )
                     return await self.async_step_addon_login()
+                finally:
+                    await addon_client.close()
 
             return self.async_show_form(
                 step_id="reauth_confirm",

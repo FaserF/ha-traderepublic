@@ -117,6 +117,13 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 if cand and addon_data:
                     latest_token = addon_data.get("session_token")
+                    is_addon_logged_in = addon_data.get("is_logged_in", True)
+                    if not is_addon_logged_in:
+                        _LOGGER.warning(
+                            "Trade Republic Add-on reports session expired. Raising auth failed."
+                        )
+                        raise InvalidAuthError("Session in Add-on is marked as expired")
+
                     if latest_token and latest_token != session_token:
                         _LOGGER.info(
                             "Fetched updated session token from Trade Republic Addon (%s)",
@@ -131,10 +138,14 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                 CONF_ADDON_HOST: cand,
                             },
                         )
+            except InvalidAuthError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.debug("Addon fetch check info: %s", e)
             finally:
                 await addon_client.close()
 
-        # Restart resistance
+        # Restart resistance (only if update is not forced and we are not in auth failure)
         if (
             not self._force_update
             and self._last_success is not None

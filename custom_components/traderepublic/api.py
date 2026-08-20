@@ -646,17 +646,23 @@ class AddonClient:
         default_port: int = 8095,
     ) -> None:
         """Initialize AddonClient."""
+        import os
+
         self._session = session
         self._owns_session = session is None
         self.default_host = default_host
         self.default_port = default_port
+        supervisor_token = os.getenv("SUPERVISOR_TOKEN", "")
+        self._auth_headers: dict[str, str] = (
+            {"Authorization": f"Bearer {supervisor_token}"} if supervisor_token else {}
+        )
 
     async def _get_session(self) -> Any:
         """Get or create active aiohttp session."""
         import aiohttp
 
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(headers=self._auth_headers)
             self._owns_session = True
         return self._session
 
