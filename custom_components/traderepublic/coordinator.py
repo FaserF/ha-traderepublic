@@ -103,6 +103,39 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Skipping update due to active backoff")
             return self.data
 
+        # Auto-sync token from addon on every cycle/startup if in addon mode
+        auth_mode = self.config_entry.data.get(CONF_AUTH_MODE)
+        addon_host = self.config_entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
+        addon_port = self.config_entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
+        session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
+
+        if auth_mode == AUTH_MODE_ADDON:
+            addon_client = AddonClient(
+                default_host=addon_host, default_port=addon_port
+            )
+            try:
+                cand, addon_data = await addon_client.fetch_session(
+                    preferred_host=addon_host, port=addon_port
+                )
+                if cand and addon_data:
+                    latest_token = addon_data.get("session_token")
+                    if latest_token and latest_token != session_token:
+                        _LOGGER.info(
+                            "Fetched updated session token from Trade Republic Addon (%s)",
+                            cand,
+                        )
+                        session_token = latest_token
+                        self.hass.config_entries.async_update_entry(
+                            self.config_entry,
+                            data={
+                                **self.config_entry.data,
+                                CONF_SESSION_TOKEN: session_token,
+                                CONF_ADDON_HOST: cand,
+                            },
+                        )
+            finally:
+                await addon_client.close()
+
         # Restart resistance
         if (
             not self._force_update
@@ -137,40 +170,6 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 await asyncio.sleep(jitter)
             else:
                 self._force_update = False
-
-            # Run API call
-            session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
-            auth_mode = self.config_entry.data.get(CONF_AUTH_MODE)
-            addon_host = self.config_entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
-            addon_port = self.config_entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
-
-            # Auto-sync token from addon if in addon mode
-            if auth_mode == AUTH_MODE_ADDON:
-                addon_client = AddonClient(
-                    default_host=addon_host, default_port=addon_port
-                )
-                try:
-                    cand, addon_data = await addon_client.fetch_session(
-                        preferred_host=addon_host, port=addon_port
-                    )
-                    if cand and addon_data:
-                        latest_token = addon_data.get("session_token")
-                        if latest_token and latest_token != session_token:
-                            _LOGGER.info(
-                                "Fetched updated session token from Trade Republic Addon (%s)",
-                                cand,
-                            )
-                            session_token = latest_token
-                            self.hass.config_entries.async_update_entry(
-                                self.config_entry,
-                                data={
-                                    **self.config_entry.data,
-                                    CONF_SESSION_TOKEN: session_token,
-                                    CONF_ADDON_HOST: cand,
-                                },
-                            )
-                finally:
-                    await addon_client.close()
 
             pin = self.config_entry.data.get(CONF_PIN, "")
             client = TradeRepublicAPIClient(

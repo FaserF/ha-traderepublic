@@ -70,6 +70,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.info(
             "Supervisor auto-discovered Trade Republic Addon: %s", discovery_info
         )
+        if self._async_current_entries():
+            return self.async_abort(reason="already_configured")
         await self.async_set_unique_id("traderepublic_addon")
         self._abort_if_unique_id_configured()
         self._auth_mode = AUTH_MODE_ADDON
@@ -82,6 +84,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle generic discovery of Trade Republic addon."""
         _LOGGER.info("Discovered Trade Republic Addon: %s", discovery_info)
+        if self._async_current_entries():
+            return self.async_abort(reason="already_configured")
         await self.async_set_unique_id("traderepublic_addon")
         self._abort_if_unique_id_configured()
         self._auth_mode = AUTH_MODE_ADDON
@@ -159,7 +163,27 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             is_valid = False
 
                     if is_valid:
-                        # Addon is logged in and session is verified -> complete setup!
+                        # Addon is logged in and session is verified -> complete setup or update reauth!
+                        entry = self.hass.config_entries.async_get_entry(
+                            self.context.get("entry_id", "")
+                        )
+                        if entry:
+                            self.hass.config_entries.async_update_entry(
+                                entry,
+                                data={
+                                    **entry.data,
+                                    CONF_PHONE_NUMBER: phone or entry.data.get(CONF_PHONE_NUMBER, ""),
+                                    CONF_SESSION_TOKEN: clean_tok,
+                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                    CONF_ADDON_HOST: candidate,
+                                    CONF_ADDON_PORT: port,
+                                },
+                            )
+                            await self.hass.config_entries.async_reload(
+                                entry.entry_id
+                            )
+                            return self.async_abort(reason="reauth_successful")
+
                         await self.async_set_unique_id(
                             phone.lower() if phone else "traderepublic"
                         )
@@ -291,6 +315,26 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         token = data.get("session_token")
                         if token:
                             phone = self._phone_number or "+49_addon_user"
+                            entry = self.hass.config_entries.async_get_entry(
+                                self.context.get("entry_id", "")
+                            )
+                            if entry:
+                                self.hass.config_entries.async_update_entry(
+                                    entry,
+                                    data={
+                                        **entry.data,
+                                        CONF_PHONE_NUMBER: phone,
+                                        CONF_SESSION_TOKEN: token,
+                                        CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                        CONF_ADDON_HOST: self._addon_host,
+                                        CONF_ADDON_PORT: self._addon_port,
+                                    },
+                                )
+                                await self.hass.config_entries.async_reload(
+                                    entry.entry_id
+                                )
+                                return self.async_abort(reason="reauth_successful")
+
                             await self.async_set_unique_id(phone.lower())
                             self._abort_if_unique_id_configured()
                             return self.async_create_entry(
