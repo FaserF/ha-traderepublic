@@ -76,7 +76,6 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         CONF_SESSION_TOKEN,
     )
 
-
     async def mock_connect_addon(self, host, port):
 
         await self.async_set_unique_id("+491701234567")
@@ -103,4 +102,3 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         )
         assert result["type"] == "create_entry"
         assert result["title"] == "Trade Republic (+491701234567)"
-
