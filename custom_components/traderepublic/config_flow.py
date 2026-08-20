@@ -347,7 +347,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                     CONF_ADDON_PORT: self._addon_port,
                                 },
                             )
-                        errors["base"] = "invalid_code"
+                        err_msg = data.get("error", "").lower()
+                        if "timeout" in err_msg or "expired" in err_msg or "2 minutes" in err_msg:
+                            errors["base"] = "timeout_expired"
+                        else:
+                            errors["base"] = "invalid_code"
                     else:
                         errors["base"] = "invalid_code"
             except Exception as exc:  # noqa: BLE001

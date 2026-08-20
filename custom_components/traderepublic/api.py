@@ -123,14 +123,14 @@ class TradeRepublicAPIClient:
                     )
                 raise CannotConnectError("Handshake failed")
         except Exception as exc:
-            _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)
-
             if "401" in str(exc) or (
                 hasattr(exc, "status_code") and exc.status_code == 401
             ):
+                _LOGGER.warning("Trade Republic session token expired (HTTP 401): %s", exc)
                 raise InvalidAuthError(
                     f"Session token expired or invalid (HTTP 401): {exc}"
                 ) from exc
+            _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)
             raise CannotConnectError(f"WebSocket connection failed: {exc}") from exc
 
     async def login_step1(self) -> str | None:
