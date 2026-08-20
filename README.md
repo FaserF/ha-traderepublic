@@ -77,7 +77,13 @@ Therefore, manually importing your active browser `sessionToken` is the only sta
 7. Paste this complete token into the **Session Token (sessionToken)** field during the Home Assistant integration setup. You can leave the **PIN** field blank.
 
 > [!WARNING]
-> **Session Expiry Limitation:** A `sessionToken` eventually expires. When the session expires or is terminated (e.g. by logging out on your web browser), Home Assistant will show a "Reauthentication required" notification, and you will need to copy and paste a new `tr_session` cookie value from a fresh browser session.
+> **Session Lifetime & Expiry (AWS WAF Limitations):** 
+> - **Short-lived Session:** Trade Republic's backend assigns `tr_session` tokens a lifetime of ~20–30 minutes when idle.
+> - **Keep-Alive via Poll Interval:** The integration's default update interval is set to **15 minutes** (`900s`), actively fetching metrics before idle expiry to help keep the WebSocket session alive. You can adjust this in the integration options (minimum 10 minutes).
+> - **No Background Auto-Renewal:** Full session regeneration from scratch requires passing Trade Republic's **AWS WAF Bot Control** JavaScript challenge, which cannot run headless inside Home Assistant containers.
+> - **Reauthentication:** If the session expires or is terminated (e.g. by logging out on the web browser), Home Assistant prompts for **Reauthentication**. Simply copy a fresh `tr_session` cookie from [app.traderepublic.com](https://app.traderepublic.com) and submit it.
+
+
 
 ---
 

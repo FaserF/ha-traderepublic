@@ -13,9 +13,10 @@ CONF_SCAN_INTERVAL = "scan_interval"
 CONF_INTEREST_RATE = "interest_rate"
 
 # Default intervals
-DEFAULT_SCAN_INTERVAL = 3600  # seconds (1 hour)
-MIN_SCAN_INTERVAL = 900  # seconds (15 minutes)
+DEFAULT_SCAN_INTERVAL = 900  # seconds (15 minutes - helps keep session alive)
+MIN_SCAN_INTERVAL = 600  # seconds (10 minutes)
 DEFAULT_INTEREST_RATE = 2.25  # percent
+
 
 # API WebSocket URL
 TR_WS_URL = "wss://api.traderepublic.com"

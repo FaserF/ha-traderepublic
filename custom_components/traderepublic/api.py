@@ -214,6 +214,7 @@ class TradeRepublicAPIClient:
         if self.phone_number.startswith("+4912345"):
             return True
         if not self.session_token:
+            _LOGGER.debug("verify_session skipped: no session token available")
             return False
         try:
             sub_id = self._msg_id
