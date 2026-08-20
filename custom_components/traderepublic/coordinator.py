@@ -24,8 +24,7 @@ from homeassistant.helpers import storage
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .addon_client import AddonClient
-from .api import InvalidAuthError, TradeRepublicAPIClient
+from .api import AddonClient, InvalidAuthError, TradeRepublicAPIClient
 from .const import (
     AUTH_MODE_ADDON,
     CONF_ADDON_HOST,

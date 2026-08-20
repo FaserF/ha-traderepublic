@@ -12,8 +12,8 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
-from .addon_client import AddonClient
 from .api import (
+    AddonClient,
     CannotConnectError,
     InvalidAuthError,
     OTPRequiredError,
