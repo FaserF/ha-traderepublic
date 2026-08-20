@@ -555,6 +555,21 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             data = await resp.json()
                             token = data.get("session_token")
                             if token and entry:
+                                # Verify token is actually valid before accepting it
+                                client = TradeRepublicAPIClient(
+                                    phone_number=entry.data.get(CONF_PHONE_NUMBER, ""),
+                                    pin=entry.data.get(CONF_PIN, ""),
+                                    session_token=token,
+                                )
+                                try:
+                                    valid = await client.verify_session()
+                                except Exception:  # noqa: BLE001
+                                    valid = False
+                                if not valid:
+                                    _LOGGER.warning(
+                                        "Addon session token is present but invalid — prompting re-login"
+                                    )
+                                    return await self.async_step_addon_login()
                                 self.hass.config_entries.async_update_entry(
                                     entry,
                                     data={**entry.data, CONF_SESSION_TOKEN: token},
@@ -563,7 +578,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                     entry.entry_id
                                 )
                                 return self.async_abort(reason="reauth_successful")
-                        # If no session present in addon, forward user directly to in-HA login form
+                        # If no valid session in addon, forward user directly to in-HA login form
                         return await self.async_step_addon_login()
                 except Exception as exc:  # noqa: BLE001
                     _LOGGER.error(
