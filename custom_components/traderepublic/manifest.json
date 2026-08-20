@@ -13,9 +13,6 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/FaserF/ha-traderepublic/issues",
-  "discovery": [
-    "traderepublic"
-  ],
   "requirements": [
     "websockets>=12.0"
   ],
