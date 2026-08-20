@@ -52,50 +52,64 @@ Adding the integration is done entirely via the UI.
 
 1. Navigate to **Settings → Devices & Services** in Home Assistant.
 2. Click **Add Integration** and search for **Trade Republic**.
-3. Follow the guided setup:
-   - **Phone Number** (e.g., `+491701234567`)
-   - **Session Token (sessionToken)** (Highly recommended)
-   - **PIN** (Only needed if not using a Session Token)
+3. **Step 1 — Select Connection Method:**
+   - 🌟 **Trade Republic Home Assistant App (Recommended):** Automatically connects to your App instance. No manual token or phone/PIN needed if already logged in on the App.
+   - 🔑 **Manual Credentials / Token (Classic Mode):** For standalone setups or additional secondary accounts.
+4. **Step 2 — Authentication (if not using App or configuring secondary account):**
+   - **Phone Number:** International E.164 format (e.g. `+491701234567`, `+33612345678`, `0170...`)
+   - **PIN:** 4–6 digits (numeric only)
+   - **Session Token (Optional):** Manual session token copied from browser
 
 ### Connection Methods
-
-During configuration, you can choose between two methods:
 
 1. 🌟 **Trade Republic Home Assistant App (Recommended)**:
    - Uses the [Trade Republic App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) running on Home Assistant.
    - Solves AWS WAF Bot Challenges automatically in a headless browser.
    - **Zero-Touch In-HA Setup:** You can perform the full login (Credentials + In-App 2FA Confirmation / SMS) directly inside Home Assistant's configuration flow.
-   - **Auto-Sync & Auto-Discovery:** Discovered automatically by Home Assistant. If an account is already logged in on the App, it connects with a single click.
+   - **Multi-Account & Discovery:** Discovered automatically by Home Assistant. If an account is already logged in on the App, it connects with a single click.
    - **Repairs & Self-Healing:** Creates Home Assistant Repair Issues if a session ever expires, allowing 1-click re-syncing or re-login directly within HA.
    - Keeps your session alive 24/7 without needing manual token copying.
 
-2. 🔑 **Manual Session Token**:
-   - Manually copy the `tr_session` cookie from your browser (instructions below).
+2. 🔑 **Manual Session Token / Additional Account**:
+   - Manually copy the `tr_session` cookie from your browser (instructions below) or log in with credentials and SMS/2FA.
 
 
 ---
 
-### 💡 Why is the Home Assistant App or `sessionToken` required?
-Standalone Python clients require a full headless browser (Playwright/Chromium) to solve Trade Republic's **AWS WAF (Web Application Firewall) Bot Control** JavaScript challenge.
+## 💡 Why do I need the Trade Republic App?
 
-Since Home Assistant Core runs in a restricted container, running a browser directly inside Core is not feasible. The **Trade Republic Home Assistant App** runs Playwright & Chromium in its own dedicated container, solving the WAF challenges and serving the active session to this integration.
+Trade Republic protects its login and servers with an advanced security shield (**AWS Bot Control / Cloudflare Challenge**).
+
+Think of this security shield like a digital gatekeeper: when you open Trade Republic on your computer or phone, your browser automatically solves invisible background checks to prove that you are a real human and not an automated robot.
+
+- **Without the App (Manual Mode):** Normal Home Assistant integrations do not have a web browser. If Home Assistant tries to contact Trade Republic directly, the security shield blocks it (`HTTP 403 Forbidden` / `NUMBER_INVALID`). You would have to manually inspect your computer's browser, copy a hidden session token, and paste it into Home Assistant every few hours or days whenever it expires.
+- **With the App (Automated & Recommended):** The [Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) provides a lightweight, dedicated browser that runs automatically in the background. It solves the invisible security challenges for you, logs in safely, confirms your phone approval, and keeps your login session active **24/7 without manual maintenance**.
+
+### ⚖️ Comparison: App vs. Manual Mode
+
+| Feature | 🌟 With Trade Republic App (Recommended) | 🔑 Without App (Manual Mode) |
+|---|---|---|
+| **Setup Effort** | 🟢 **1-Click / Guided:** Log in once via HA UI | 🔴 **Complex:** Must extract tokens via browser Developer Tools (F12) |
+| **Session Lifetime** | 🟢 **Permanent (24/7 Auto-Renew)** | 🟠 **Temporary:** Expires after hours/days of inactivity |
+| **Bot Challenge / WAF** | 🟢 **Solved automatically** in background browser | 🔴 **Not supported:** Can trigger account lockouts / blocks |
+| **Re-Authentication** | 🟢 **Self-Healing:** 1-Click repair prompt in HA | 🔴 **Manual:** Must re-copy tokens from browser every time |
+| **Smartphone In-App Approval** | 🟢 **Supported:** One-tap confirmation on phone | 🟠 **Limited:** Requires SMS code or pre-existing browser token |
+| **Multi-Account Support** | 🟢 **Yes** | 🟢 **Yes** |
 
 ---
 
-### 🔑 Manual Token: How to retrieve your `sessionToken`
+### 🔑 Manual Mode: How to copy your `sessionToken` (If not using the App)
 1. Open your desktop web browser (e.g., Chrome, Firefox, Edge) and log in to [app.traderepublic.com](https://app.traderepublic.com).
-2. Once logged in, press **F12** (or right-click anywhere and select **Inspect**) to open the Developer Tools.
+2. Once logged in, press **F12** (or right-click anywhere and select **Inspect**) to open Developer Tools.
 3. Navigate to the **Application** tab (Chrome/Edge) or **Storage** tab (Firefox).
-4. In the left sidebar under the **Storage** section, expand **Cookies** and select `https://app.traderepublic.com`.
-5. Find the cookie named **`tr_session`**. Its value is a very long JWT string starting with `eyJhbGci...`.
-6. Copy the **entire** value of the `tr_session` cookie (the complete long string). Do NOT copy the `tr_claims` cookie or only parts of the token.
-7. Paste this complete token into the **Session Token (sessionToken)** field during the Home Assistant integration setup.
+4. In the left sidebar under **Storage**, expand **Cookies** and select `https://app.traderepublic.com`.
+5. Find the cookie named **`tr_session`**. Its value is a long string starting with `eyJhbGci...`.
+6. Copy the **entire** value of `tr_session` and paste it into the **Session Token** field in Home Assistant.
 
 > [!WARNING]
-> **Manual Session Lifetime & Expiry (AWS WAF Limitations):** 
-> - **Short-lived Session:** When using manual mode, `tr_session` tokens have an idle lifetime of ~20–30 minutes unless refreshed.
-> - **Keep-Alive via Poll Interval:** The integration's default update interval is set to **15 minutes** (`900s`) to help keep active sessions alive.
-> - **Permanent Solution:** Install the [Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) for 24/7 automated session renewal.
+> **Manual Session Lifetime Limitation:**
+> Tokens copied manually will eventually expire when invalidated by Trade Republic. For a permanent, set-and-forget setup, install the [Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic).
+
 
 
 

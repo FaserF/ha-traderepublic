@@ -10,6 +10,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
+from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
 from .api import (
     CannotConnectError,
@@ -61,15 +62,26 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._addon_host: str = DEFAULT_ADDON_HOST
         self._addon_port: int = DEFAULT_ADDON_PORT
 
+    async def async_step_hassio(  # type: ignore[override]
+        self, discovery_info: HassioServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle Home Assistant Supervisor auto-discovery."""
+        _LOGGER.info("Supervisor auto-discovered Trade Republic Addon: %s", discovery_info)
+        self._auth_mode = AUTH_MODE_ADDON
+        self._addon_host = discovery_info.config.get("host", DEFAULT_ADDON_HOST)
+        self._addon_port = int(discovery_info.config.get("port", DEFAULT_ADDON_PORT))
+        return await self._async_connect_addon(self._addon_host, self._addon_port)
+
     async def async_step_discovery(
         self, discovery_info: dict[str, Any]
     ) -> ConfigFlowResult:
-        """Handle discovery of Trade Republic addon."""
+        """Handle generic discovery of Trade Republic addon."""
         _LOGGER.info("Discovered Trade Republic Addon: %s", discovery_info)
         self._auth_mode = AUTH_MODE_ADDON
         self._addon_host = discovery_info.get("host", DEFAULT_ADDON_HOST)
         self._addon_port = int(discovery_info.get("port", DEFAULT_ADDON_PORT))
-        return await self.async_step_addon_confirm()
+        return await self._async_connect_addon(self._addon_host, self._addon_port)
+
 
     async def async_step_addon_confirm(
         self, user_input: dict[str, Any] | None = None
@@ -136,23 +148,39 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     if resp.status == 200:
                         data = await resp.json()
                         token = data.get("session_token")
-                        phone = data.get("phone_number") or "+49_addon_user"
+                        phone = data.get("phone_number") or ""
+                        is_logged_in = data.get("is_logged_in", True)
 
-                        if token:
-                            await self.async_set_unique_id(phone.lower())
-                            self._abort_if_unique_id_configured()
-                            return self.async_create_entry(
-                                title=f"Trade Republic ({phone})",
-                                data={
-                                    CONF_PHONE_NUMBER: phone,
-                                    CONF_PIN: "",
-                                    CONF_SESSION_TOKEN: token,
-                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                    CONF_ADDON_HOST: candidate,
-                                    CONF_ADDON_PORT: port,
-                                },
-                            )
-                        # Addon reachable but not logged in -> seamlessly forward to login within HA
+                        if phone:
+                            self._phone_number = phone
+
+                        # If token exists and Addon marks session active, test validity before creating entry
+                        if token and is_logged_in:
+                            clean_tok = token.strip().strip('"').strip("'")
+                            test_client = TradeRepublicAPIClient(phone, "", clean_tok)
+                            try:
+                                await test_client.connect()
+                                is_valid = await test_client.verify_session()
+                                await test_client.close()
+                                if is_valid:
+                                    # Addon is logged in and session is verified -> complete setup!
+                                    await self.async_set_unique_id(phone.lower() if phone else "traderepublic")
+                                    self._abort_if_unique_id_configured()
+                                    return self.async_create_entry(
+                                        title=f"Trade Republic ({phone})" if phone else "Trade Republic",
+                                        data={
+                                            CONF_PHONE_NUMBER: phone,
+                                            CONF_PIN: "",
+                                            CONF_SESSION_TOKEN: clean_tok,
+                                            CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                            CONF_ADDON_HOST: candidate,
+                                            CONF_ADDON_PORT: port,
+                                        },
+                                    )
+                            except Exception as test_err:  # noqa: BLE001
+                                _LOGGER.info("Addon token verification failed (%s) -> prompting login in HA", test_err)
+
+                        # Addon reachable but session missing or expired -> seamlessly forward to login prompt in HA
                         self._addon_host = candidate
                         self._addon_port = port
                         return await self.async_step_addon_login()
@@ -292,14 +320,34 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle initial step to choose authentication method or direct manual login."""
+        """Handle Step 1: Select connection method."""
+        if user_input is not None:
+            self._auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
+            if self._auth_mode == AUTH_MODE_ADDON:
+                return await self._async_connect_addon(self._addon_host, self._addon_port)
+            return await self.async_step_manual()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_AUTH_MODE, default=AUTH_MODE_ADDON): vol.In(
+                        {
+                            AUTH_MODE_ADDON: "Trade Republic Home Assistant App (Recommended - Auto Keep-Alive)",
+                            AUTH_MODE_MANUAL: "Manual Credentials / Token (Classic Mode)",
+                        }
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle Step 2 (Manual Mode): Enter phone, PIN and optional session token."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
-            if auth_mode == AUTH_MODE_ADDON:
-                return await self._async_connect_addon(self._addon_host, self._addon_port)
-
             raw_phone = (user_input.get(CONF_PHONE_NUMBER) or "").strip().replace(" ", "").replace("-", "").replace("/", "")
             if raw_phone.startswith("00"):
                 self._phone_number = "+" + raw_phone[2:]
@@ -358,7 +406,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         _LOGGER.error("Unexpected error during login step 1: %s", exc)
                         errors["base"] = "unknown"
                     else:
-                        if not session_token:
+                        if not clean_token:
                             return self.async_create_entry(
                                 title=self._phone_number or "Trade Republic",
                                 data={
@@ -370,22 +418,17 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="manual",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_AUTH_MODE, default=AUTH_MODE_ADDON): vol.In(
-                        {
-                            AUTH_MODE_ADDON: "Trade Republic Add-on (Recommended, Keeps Session Alive)",
-                            AUTH_MODE_MANUAL: "Manual Token / Credentials",
-                        }
-                    ),
-                    vol.Optional(CONF_PHONE_NUMBER): str,
+                    vol.Required(CONF_PHONE_NUMBER): str,
                     vol.Optional(CONF_PIN): str,
                     vol.Optional(CONF_SESSION_TOKEN): str,
                 }
             ),
             errors=errors,
         )
+
 
 
     async def async_step_mfa(

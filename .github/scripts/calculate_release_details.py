@@ -252,30 +252,75 @@ def main():
         f"> **Affected areas:** {impact_str}\n"
     )
 
+    if (
+        rtype != "stable"
+        or "b" in version.lower()
+        or "beta" in version.lower()
+        or "dev" in version.lower()
+    ):
+        addon_compat_note = (
+            "> [!NOTE]\n"
+            "> **🧩 Add-on Compatibility Note**: To test new features or ensure full compatibility with this beta release of the integration, you may need to use the **Edge version** of the **[Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/edge/traderepublic)**."
+        )
+    else:
+        addon_compat_note = (
+            "> [!NOTE]\n"
+            "> **🧩 Add-on Compatibility Note**: Please make sure to also update the **[Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic)** to ensure full feature availability and compatibility. *Note: Updating the Add-on automatically updates the integration files in Home Assistant, though a Home Assistant restart is required to load the updated integration.*"
+        )
+
     released_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M") + " UTC"
-    body_parts = [
-        f"# {friendly_name} {version}  {channel_badge}",
-        "",
-        prerelease_note,
-        "## 📋 What's Changed",
-        "",
-        changelog_md,
-        "",
-        "## 📊 Release Details",
-        "",
-        "| | |",
-        "|---|---|",
-        f"| **Version** | `{version}` |",
-        f"| **Channel** | {rtype} |",
-        f"| **Released** | {released_at} |",
-        f"| **Commits included** | {total_commit_count} — {changelog_label} |",
-        f"| **Downloads (this release)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/{tag}/{domain}.zip?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases/tag/{tag}) |",
-        f"| **Downloads (total)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/total?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases) |",
-        "",
-        "---",
-        "",
-        f"*📖 [Documentation]({docs_url})  ·  🐛 [Report an Issue](https://github.com/{repo}/issues/new/choose)  ·  📦 [All Releases](https://github.com/{repo}/releases)*",
-    ]
+    if os.environ.get("EMPTY_RELEASE") == "true":
+        body_parts = [
+            f"# {friendly_name} {version} (Sync)  {channel_badge}",
+            "",
+            "## ℹ️ Sync Release",
+            "",
+            "HA App (Addon) only changes, no changes on integration side.",
+            "",
+            "This release is only to stay in sync with the HA App addon version. For more details on the latest HA App (Addon) changes, please visit the [Addon repository](https://github.com/FaserF/hassio-addons/tree/master/traderepublic).",
+            "",
+            "## 📊 Release Details",
+            "",
+            "| | |",
+            "|---|---|",
+            f"| **Version** | `{version}` |",
+            f"| **Channel** | {rtype} |",
+            f"| **Released** | {released_at} |",
+            f"| **Downloads (this release)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/{tag}/{domain}.zip?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases/tag/{tag}) |",
+            f"| **Downloads (total)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/total?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases) |",
+            "",
+            "---",
+            "",
+            f"*📖 [Documentation]({docs_url})  ·  🐛 [Report an Issue](https://github.com/{repo}/issues/new/choose)  ·  📦 [All Releases](https://github.com/{repo}/releases)*",
+        ]
+    else:
+        body_parts = [
+            f"# {friendly_name} {version}  {channel_badge}",
+            "",
+            prerelease_note,
+            "",
+            addon_compat_note,
+            "",
+            "## 📋 What's Changed",
+            "",
+            changelog_md,
+            "",
+            "## 📊 Release Details",
+            "",
+            "| | |",
+            "|---|---|",
+            f"| **Version** | `{version}` |",
+            f"| **Channel** | {rtype} |",
+            f"| **Released** | {released_at} |",
+            f"| **Commits included** | {total_commit_count} — {changelog_label} |",
+            f"| **Downloads (this release)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/{tag}/{domain}.zip?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases/tag/{tag}) |",
+            f"| **Downloads (total)** | [![Downloads](https://img.shields.io/github/downloads/{owner}/{repo_name}/total?style=flat-square&logo=github)](https://github.com/{owner}/{repo_name}/releases) |",
+            "",
+            "---",
+            "",
+            f"*📖 [Documentation]({docs_url})  ·  🐛 [Report an Issue](https://github.com/{repo}/issues/new/choose)  ·  📦 [All Releases](https://github.com/{repo}/releases)*",
+        ]
+
 
     body = "\n".join(body_parts)
     with open("release_body.md", "w", encoding="utf-8") as f:

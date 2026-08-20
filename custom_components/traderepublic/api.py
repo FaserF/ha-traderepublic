@@ -57,17 +57,18 @@ class TradeRepublicAPIClient:
             loop = asyncio.get_running_loop()
             ssl_context = await loop.run_in_executor(None, ssl.create_default_context)
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
                 "Origin": "https://app.traderepublic.com",
             }
+            clean_token = None
             if self.session_token:
                 clean_token = self.session_token.strip().strip('"').strip("'")
                 if clean_token.lower().startswith("bearer "):
                     clean_token = clean_token[7:].strip()
-                headers["Authorization"] = f"Bearer {clean_token}"
                 headers["Cookie"] = (
                     f"tr_session={clean_token}; tr_session_id={clean_token}; sessionToken={clean_token}"
                 )
+
             try:
                 self.ws = await websockets.connect(
                     "wss://api.traderepublic.com",
@@ -75,34 +76,36 @@ class TradeRepublicAPIClient:
                     additional_headers=headers,
                 )
             except Exception as first_exc:
-                if self.session_token and (
+                # If cookies-only upgrade rejected, try with Authorization Bearer header
+                if clean_token and (
                     "401" in str(first_exc)
                     or getattr(first_exc, "status_code", None) == 401
                 ):
-                    cookie_headers = {
+                    auth_headers = {
                         "User-Agent": headers["User-Agent"],
                         "Origin": headers["Origin"],
-                        "Cookie": (
-                            f"tr_session={clean_token}; tr_session_id={clean_token}; sessionToken={clean_token}"
-                        ),
+                        "Authorization": f"Bearer {clean_token}",
+                        "Cookie": headers.get("Cookie", ""),
                     }
                     try:
                         self.ws = await websockets.connect(
                             "wss://api.traderepublic.com",
                             ssl=ssl_context,
-                            additional_headers=cookie_headers,
+                            additional_headers=auth_headers,
                         )
                     except Exception:  # noqa: BLE001
                         raise first_exc from None
                 else:
                     raise
+
             # Handshake
             handshake_payload: dict[str, Any] = {
                 "locale": "de",
                 "platformId": "web",
-                "appVersion": "4.110.0",
+                "appVersion": "4.120.0",
                 "osVersion": "10.0.0",
             }
+
             if self.session_token:
                 handshake_payload["token"] = clean_token
             await self._send(

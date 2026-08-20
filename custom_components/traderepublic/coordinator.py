@@ -205,6 +205,46 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         },
                     )
             except InvalidAuthError as err:
+                # If connected via Addon, attempt an immediate token refresh via browser before failing
+                if auth_mode == AUTH_MODE_ADDON:
+                    import aiohttp
+                    try:
+                        _LOGGER.info("Attempting automatic session refresh via Trade Republic Add-on...")
+                        url = f"http://{addon_host}:{addon_port}/api/v1/refresh"
+                        async with (
+                            aiohttp.ClientSession() as http_session,
+                            http_session.post(url, timeout=aiohttp.ClientTimeout(total=8)) as refresh_resp,
+                        ):
+                            if refresh_resp.status == 200:
+                                refresh_data = await refresh_resp.json()
+                                refreshed_token = refresh_data.get("session_token")
+                                if refreshed_token and refreshed_token != session_token:
+                                    _LOGGER.info("Successfully refreshed session token from Add-on, retrying connection...")
+                                    self.hass.config_entries.async_update_entry(
+                                        self.config_entry,
+                                        data={
+                                            **self.config_entry.data,
+                                            CONF_SESSION_TOKEN: refreshed_token,
+                                        },
+                                    )
+                                    client = TradeRepublicAPIClient(
+                                        self.phone_number,
+                                        pin,
+                                        refreshed_token,
+                                    )
+                                    async with asyncio.timeout(60):
+                                        await client.connect()
+                                        override_rate = (
+                                            float(self.config_entry.options[CONF_INTEREST_RATE])
+                                            if CONF_INTEREST_RATE in self.config_entry.options
+                                            else None
+                                        )
+                                        data = await client.fetch_portfolio_data(interest_rate=override_rate)
+                                        await client.close()
+                                        return data
+                    except Exception as refresh_err:  # noqa: BLE001
+                        _LOGGER.debug("Add-on auto-refresh attempt failed: %s", refresh_err)
+
                 _LOGGER.error(
                     "Trade Republic authentication failed (%s). Re-authentication required.",
                     err,
@@ -223,10 +263,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 except Exception as issue_err:  # noqa: BLE001
                     _LOGGER.debug("Could not create repair issue: %s", issue_err)
 
-
                 raise ConfigEntryAuthFailed(
                     "Trade Republic authentication failed. Please re-authenticate."
                 ) from err
+
 
 
             except Exception as err:

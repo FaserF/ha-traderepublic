@@ -5,12 +5,19 @@
         "title": "Connect to Trade Republic",
         "description": "Choose your authentication method. Using the Trade Republic Home Assistant App is recommended to automatically solve bot challenges and keep sessions alive 24/7 without manual tokens.",
         "data": {
-          "auth_mode": "Connection Method",
-          "phone_number": "Phone Number (Manual Mode only, e.g. +491701234567)",
-          "pin": "PIN (Manual Mode only, 4-6 digits)",
-          "session_token": "Session Token (Manual Mode only, copied from browser)"
+          "auth_mode": "Connection Method"
         }
       },
+      "manual": {
+        "title": "Manual Credentials / Token",
+        "description": "Enter your phone number and PIN or a manual session token copied from your browser.",
+        "data": {
+          "phone_number": "Phone Number (e.g. +491701234567)",
+          "pin": "PIN (4-6 digits)",
+          "session_token": "Session Token (Optional, copied from browser)"
+        }
+      },
+
       "addon": {
         "title": "Trade Republic App",
         "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically.",
@@ -20,9 +27,10 @@
         }
       },
       "addon_confirm": {
-        "title": "Discovered Trade Republic App",
-        "description": "Trade Republic Home Assistant App was discovered at {host}. Do you want to connect to it?"
+        "title": "Trade Republic App Found",
+        "description": "An active Trade Republic Home Assistant App was found ({host}). Would you like to connect to it to automatically manage your session?"
       },
+
       "addon_login": {
         "title": "Login via Trade Republic App",
         "description": "Enter your credentials. The Trade Republic App handles authentication and keeps the session active.",

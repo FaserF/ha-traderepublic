@@ -5,7 +5,11 @@
     "@FaserF"
   ],
   "config_flow": true,
+  "after_dependencies": [
+    "hassio"
+  ],
   "documentation": "https://github.com/FaserF/ha-traderepublic",
+
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/FaserF/ha-traderepublic/issues",
