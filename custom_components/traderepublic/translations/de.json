@@ -58,6 +58,7 @@
         "title": "Trade Republic reauthentifizieren",
         "description": "Deine Sitzung ist abgelaufen. Wenn du die App nutzt, kannst du die Sitzung direkt in Home Assistant synchronisieren oder neu anmelden. Im manuellen Modus bitte ein neues Token oder die PIN eingeben.",
         "data": {
+          "reauth_action": "Aktion",
           "pin": "PIN (nur Manueller Modus, 4-6 Ziffern)",
           "session_token": "Session Token (nur Manueller Modus)"
         }
