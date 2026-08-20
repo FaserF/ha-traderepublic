@@ -26,6 +26,16 @@ DEFAULT_INTEREST_RATE = 2.25  # percent
 DEFAULT_ADDON_HOST = "127.0.0.1"
 DEFAULT_ADDON_PORT = 8095
 
+ADDON_CONTAINER_HOSTS = [
+    "a0d7b954-traderepublic-edge",
+    "a0d7b954-traderepublic",
+    "traderepublic-edge",
+    "traderepublic",
+    "localhost",
+    "127.0.0.1",
+]
+
+
 
 # API WebSocket URL
 TR_WS_URL = "wss://api.traderepublic.com"

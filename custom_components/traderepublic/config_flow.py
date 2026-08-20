@@ -124,20 +124,13 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         import aiohttp
 
-        candidate_hosts = [host]
-        for internal_name in [
-            "605cee21-traderepublic",
-            "605cee21_traderepublic",
-            "edfe50eb-traderepublic",
-            "edfe50eb_traderepublic",
-            "local-traderepublic",
-            "addon-traderepublic",
-            "traderepublic",
-            "localhost",
-            "127.0.0.1",
-        ]:
+        from .const import ADDON_CONTAINER_HOSTS
+
+        candidate_hosts = [host] if host else []
+        for internal_name in ADDON_CONTAINER_HOSTS:
             if internal_name not in candidate_hosts:
                 candidate_hosts.append(internal_name)
+
 
         for candidate in candidate_hosts:
             url = f"http://{candidate}:{port}/api/v1/session"

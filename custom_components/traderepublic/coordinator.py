@@ -148,33 +148,42 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             if auth_mode == AUTH_MODE_ADDON:
                 import aiohttp
 
-                try:
-                    url = f"http://{addon_host}:{addon_port}/api/v1/session"
-                    async with (
-                        aiohttp.ClientSession() as http_session,
-                        http_session.get(
-                            url, timeout=aiohttp.ClientTimeout(total=5)
-                        ) as resp,
-                    ):
-                        if resp.status == 200:
-                            addon_data = await resp.json()
-                            latest_token = addon_data.get("session_token")
+                from .const import ADDON_CONTAINER_HOSTS
 
-                            if latest_token and latest_token != session_token:
-                                _LOGGER.info(
-                                    "Fetched updated session token from Trade Republic Addon"
-                                )
-                                session_token = latest_token
-                                self.hass.config_entries.async_update_entry(
-                                    self.config_entry,
-                                    data={
-                                        **self.config_entry.data,
-                                        CONF_SESSION_TOKEN: session_token,
-                                    },
-                                )
+                candidate_hosts = [addon_host] if addon_host else []
+                for fallback in ADDON_CONTAINER_HOSTS:
+                    if fallback not in candidate_hosts:
+                        candidate_hosts.append(fallback)
 
-                except Exception as err:  # noqa: BLE001
-                    _LOGGER.debug("Could not pre-fetch token from addon: %s", err)
+                for cand in candidate_hosts:
+                    try:
+                        url = f"http://{cand}:{addon_port}/api/v1/session"
+                        async with (
+                            aiohttp.ClientSession() as http_session,
+                            http_session.get(
+                                url, timeout=aiohttp.ClientTimeout(total=4)
+                            ) as resp,
+                        ):
+                            if resp.status == 200:
+                                addon_data = await resp.json()
+                                latest_token = addon_data.get("session_token")
+
+                                if latest_token and latest_token != session_token:
+                                    _LOGGER.info(
+                                        "Fetched updated session token from Trade Republic Addon (%s)", cand
+                                    )
+                                    session_token = latest_token
+                                    self.hass.config_entries.async_update_entry(
+                                        self.config_entry,
+                                        data={
+                                            **self.config_entry.data,
+                                            CONF_SESSION_TOKEN: session_token,
+                                            CONF_ADDON_HOST: cand,
+                                        },
+                                    )
+                                break
+                    except Exception as err:  # noqa: BLE001
+                        _LOGGER.debug("Could not pre-fetch token from addon (%s): %s", cand, err)
 
             pin = self.config_entry.data.get(CONF_PIN, "")
             client = TradeRepublicAPIClient(
@@ -212,57 +221,67 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 if auth_mode == AUTH_MODE_ADDON:
                     import aiohttp
 
-                    try:
-                        _LOGGER.info(
-                            "Attempting automatic session refresh via Trade Republic Add-on..."
-                        )
-                        url = f"http://{addon_host}:{addon_port}/api/v1/refresh"
-                        async with (
-                            aiohttp.ClientSession() as http_session,
-                            http_session.post(
-                                url, timeout=aiohttp.ClientTimeout(total=8)
-                            ) as refresh_resp,
-                        ):
-                            if refresh_resp.status == 200:
-                                refresh_data = await refresh_resp.json()
-                                refreshed_token = refresh_data.get("session_token")
-                                if refreshed_token and refreshed_token != session_token:
-                                    _LOGGER.info(
-                                        "Successfully refreshed session token from Add-on, retrying connection..."
-                                    )
-                                    self.hass.config_entries.async_update_entry(
-                                        self.config_entry,
-                                        data={
-                                            **self.config_entry.data,
-                                            CONF_SESSION_TOKEN: refreshed_token,
-                                        },
-                                    )
-                                    client = TradeRepublicAPIClient(
-                                        self.phone_number,
-                                        pin,
-                                        refreshed_token,
-                                    )
-                                    async with asyncio.timeout(60):
-                                        await client.connect()
-                                        override_rate = (
-                                            float(
-                                                self.config_entry.options[
-                                                    CONF_INTEREST_RATE
-                                                ]
+                    from .const import ADDON_CONTAINER_HOSTS
+
+                    refresh_hosts = [addon_host] if addon_host else []
+                    for fallback in ADDON_CONTAINER_HOSTS:
+                        if fallback not in refresh_hosts:
+                            refresh_hosts.append(fallback)
+
+                    for rhost in refresh_hosts:
+                        try:
+                            _LOGGER.info(
+                                "Attempting automatic session refresh via Trade Republic Add-on (%s)...", rhost
+                            )
+                            url = f"http://{rhost}:{addon_port}/api/v1/refresh"
+                            async with (
+                                aiohttp.ClientSession() as http_session,
+                                http_session.post(
+                                    url, timeout=aiohttp.ClientTimeout(total=8)
+                                ) as refresh_resp,
+                            ):
+                                if refresh_resp.status == 200:
+                                    refresh_data = await refresh_resp.json()
+                                    refreshed_token = refresh_data.get("session_token")
+                                    if refreshed_token and refreshed_token != session_token:
+                                        _LOGGER.info(
+                                            "Successfully refreshed session token from Add-on, retrying connection..."
+                                        )
+                                        self.hass.config_entries.async_update_entry(
+                                            self.config_entry,
+                                            data={
+                                                **self.config_entry.data,
+                                                CONF_SESSION_TOKEN: refreshed_token,
+                                                CONF_ADDON_HOST: rhost,
+                                            },
+                                        )
+                                        client = TradeRepublicAPIClient(
+                                            self.phone_number,
+                                            pin,
+                                            refreshed_token,
+                                        )
+                                        async with asyncio.timeout(60):
+                                            await client.connect()
+                                            override_rate = (
+                                                float(
+                                                    self.config_entry.options[
+                                                        CONF_INTEREST_RATE
+                                                    ]
+                                                )
+                                                if CONF_INTEREST_RATE
+                                                in self.config_entry.options
+                                                else None
                                             )
-                                            if CONF_INTEREST_RATE
-                                            in self.config_entry.options
-                                            else None
-                                        )
-                                        data = await client.fetch_portfolio_data(
-                                            interest_rate=override_rate
-                                        )
-                                        await client.close()
-                                        return data
-                    except Exception as refresh_err:  # noqa: BLE001
-                        _LOGGER.debug(
-                            "Add-on auto-refresh attempt failed: %s", refresh_err
-                        )
+                                            data = await client.fetch_portfolio_data(
+                                                interest_rate=override_rate
+                                            )
+                                            await client.close()
+                                            return data
+                        except Exception as refresh_err:  # noqa: BLE001
+                            _LOGGER.debug(
+                                "Add-on auto-refresh attempt failed on %s: %s", rhost, refresh_err
+                            )
+
 
                 _LOGGER.error(
                     "Trade Republic authentication failed (%s). Re-authentication required.",
