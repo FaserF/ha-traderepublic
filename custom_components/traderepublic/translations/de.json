@@ -3,55 +3,55 @@
     "step": {
       "user": {
         "title": "Mit Trade Republic verbinden",
-        "description": "Wähle deine Anmeldemethode. Die Nutzung der Home Assistant App wird empfohlen, um Sitzungen dauerhaft aktiv zu halten.",
+        "description": "Wähle deine Verbindungsmethode. Die Trade Republic Home Assistant App wird empfohlen, um Bot-Challenges automatisch zu lösen und die Sitzung ohne manuelle Tokens 24/7 aktiv zu halten.",
         "data": {
           "auth_mode": "Verbindungsmethode",
-          "phone_number": "Telefonnummer (z. B. +491701234567)",
-          "pin": "PIN (4-6 Stellen)",
-          "session_token": "Session Token (sessionToken UUID aus dem Local Storage)"
+          "phone_number": "Telefonnummer (nur Manueller Modus, z.B. +491701234567)",
+          "pin": "PIN (nur Manueller Modus, 4-6 Ziffern)",
+          "session_token": "Session Token (nur Manueller Modus, aus dem Browser kopiert)"
         }
       },
       "addon": {
         "title": "Trade Republic App",
-        "description": "Verbindung über die Trade Republic Home Assistant App zur dauerhaften Sitzungsaktualisierung.",
+        "description": "Verbinde über die Trade Republic Home Assistant App für automatische Keep-Alive Sitzungen.",
         "data": {
           "addon_host": "App Host / IP",
           "addon_port": "App Port"
         }
       },
       "addon_confirm": {
-        "title": "Trade Republic App entdeckt",
+        "title": "Trade Republic App erkannt",
         "description": "Die Trade Republic Home Assistant App wurde unter {host} gefunden. Möchtest du dich damit verbinden?"
       },
       "addon_login": {
         "title": "Anmeldung über Trade Republic App",
-        "description": "Gib deine Zugangsdaten ein. Die Trade Republic App löst Sicherheits- und Bot-Prüfungen automatisch im Hintergrund.",
+        "description": "Gib deine Zugangsdaten ein. Die Trade Republic App übernimmt die Anmeldung und hält die Sitzung aktiv.",
         "data": {
           "phone_number": "Telefonnummer (z. B. +491701234567)",
-          "pin": "PIN (4-6 Stellen)"
+          "pin": "PIN (4-6 Ziffern)"
         }
       },
       "addon_2fa": {
-        "title": "Zwei-Faktor-Bestätigung (2FA)",
-        "description": "Bestätige die Anmeldung in deiner Trade Republic Smartphone-App oder trage unten den SMS-Code ein. Nach der Freigabe auf dem Smartphone klicke einfach direkt auf Absenden (Code kann leer bleiben).",
+        "title": "2FA Bestätigung",
+        "description": "Bestätige die Anmeldung in deiner Trade Republic Smartphone-App oder gib den SMS-Code unten ein. Bei In-App-Freigabe einfach ohne Code auf Absenden klicken.",
         "data": {
-          "code": "SMS-Code (Optional bei Freigabe in der App)"
+          "code": "SMS Code (Optional bei In-App Bestätigung)"
         }
       },
 
       "mfa": {
         "title": "Zwei-Faktor-Authentifizierung",
-        "description": "Bitte gib den Verifizierungscode ein, der an dein Telefon oder deine App gesendet wurde.",
+        "description": "Bitte gib den Verifizierungscode ein, der an dein Smartphone gesendet wurde.",
         "data": {
           "code": "Verifizierungscode"
         }
       },
       "reauth_confirm": {
         "title": "Trade Republic reauthentifizieren",
-        "description": "Deine Session ist abgelaufen. Wenn du die Trade Republic Home Assistant App nutzt, stelle sicher, dass du in der App-Weboberfläche eingeloggt bist und klicke auf Absenden. Andernfalls gib einen neuen sessionToken oder deine PIN ein.",
+        "description": "Deine Sitzung ist abgelaufen. Wenn du die App nutzt, kannst du die Sitzung direkt in Home Assistant synchronisieren oder neu anmelden. Im manuellen Modus bitte ein neues Token oder die PIN eingeben.",
         "data": {
-          "pin": "PIN (4-6 Stellen)",
-          "session_token": "Session Token (sessionToken UUID)"
+          "pin": "PIN (nur Manueller Modus, 4-6 Ziffern)",
+          "session_token": "Session Token (nur Manueller Modus)"
         }
       }
 

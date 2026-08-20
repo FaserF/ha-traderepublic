@@ -3,12 +3,12 @@
     "step": {
       "user": {
         "title": "Connect to Trade Republic",
-        "description": "Choose your authentication method. Using the Home Assistant App is recommended to keep sessions alive automatically.",
+        "description": "Choose your authentication method. Using the Trade Republic Home Assistant App is recommended to automatically solve bot challenges and keep sessions alive 24/7 without manual tokens.",
         "data": {
           "auth_mode": "Connection Method",
-          "phone_number": "Phone Number (e.g. +491701234567)",
-          "pin": "PIN (4-6 digits)",
-          "session_token": "Session Token (sessionToken UUID from Local Storage)"
+          "phone_number": "Phone Number (Manual Mode only, e.g. +491701234567)",
+          "pin": "PIN (Manual Mode only, 4-6 digits)",
+          "session_token": "Session Token (Manual Mode only, copied from browser)"
         }
       },
       "addon": {
@@ -25,7 +25,7 @@
       },
       "addon_login": {
         "title": "Login via Trade Republic App",
-        "description": "Enter your credentials. The Trade Republic App will solve bot challenges in the background.",
+        "description": "Enter your credentials. The Trade Republic App handles authentication and keeps the session active.",
         "data": {
           "phone_number": "Phone Number (e.g. +491701234567)",
           "pin": "PIN (4-6 digits)"
@@ -48,12 +48,13 @@
       },
       "reauth_confirm": {
         "title": "Reauthenticate Trade Republic",
-        "description": "Your session has expired. If you are using the Trade Republic Home Assistant App, ensure you are logged in via the App Web UI and click Submit. Otherwise, enter a fresh sessionToken or your PIN.",
+        "description": "Your session has expired. If using the App, simply sync or log in again via Home Assistant. If using Manual Mode, enter a fresh session token or PIN.",
         "data": {
-          "pin": "PIN (4-6 digits)",
-          "session_token": "Session Token (sessionToken UUID)"
+          "pin": "PIN (Manual Mode only, 4-6 digits)",
+          "session_token": "Session Token (Manual Mode only)"
         }
       }
+
 
     },
     "error": {

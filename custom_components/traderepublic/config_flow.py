@@ -183,14 +183,26 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Trigger login on Trade Republic App directly from HA integration."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            self._phone_number = user_input.get(CONF_PHONE_NUMBER, "").strip()
-            self._pin = user_input.get(CONF_PIN, "").strip()
-
-            if not self._phone_number:
-                errors[CONF_PHONE_NUMBER] = "invalid_phone"
-            elif not self._pin or not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
-                errors[CONF_PIN] = "invalid_pin"
+            raw_phone = user_input.get(CONF_PHONE_NUMBER, "").strip().replace(" ", "").replace("-", "").replace("/", "")
+            if raw_phone.startswith("00"):
+                self._phone_number = "+" + raw_phone[2:]
+            elif raw_phone.startswith("+"):
+                self._phone_number = raw_phone
+            elif raw_phone.startswith("0") and len(raw_phone) >= 9:
+                self._phone_number = "+49" + raw_phone[1:]
             else:
+                self._phone_number = "+" + raw_phone
+
+            digits_only = "".join(filter(str.isdigit, self._phone_number))
+            if not self._phone_number.startswith("+") or not (7 <= len(digits_only) <= 15):
+                errors[CONF_PHONE_NUMBER] = "invalid_phone"
+
+            self._pin = (user_input.get(CONF_PIN) or "").strip()
+            if not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
+                errors[CONF_PIN] = "invalid_pin"
+
+
+            if not errors:
                 import aiohttp
                 url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
                 try:
@@ -281,75 +293,51 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle initial step to choose authentication method or direct manual login."""
-        # Auto-detect running Trade Republic App in background if user opened setup
-        if user_input is None and not self.context.get("addon_checked"):
-            import asyncio
-
-            self.context["addon_checked"] = True  # type: ignore[typeddict-unknown-key]
-            for candidate in [
-                "605cee21-traderepublic",
-                "605cee21_traderepublic",
-                "edfe50eb-traderepublic",
-                "edfe50eb_traderepublic",
-                "local-traderepublic",
-                "addon-traderepublic",
-                "traderepublic",
-                "localhost",
-                "127.0.0.1",
-            ]:
-                try:
-                    _, writer = await asyncio.wait_for(
-                        asyncio.open_connection(candidate, DEFAULT_ADDON_PORT),
-                        timeout=0.3,
-                    )
-                    writer.close()
-                    await writer.wait_closed()
-                    _LOGGER.info("Discovered reachable Trade Republic App on %s", candidate)
-                    self._addon_host = candidate
-                    self._addon_port = DEFAULT_ADDON_PORT
-                    self._auth_mode = AUTH_MODE_ADDON
-                    return await self._async_connect_addon(self._addon_host, self._addon_port)
-                except Exception as probe_err:  # noqa: BLE001
-                    _LOGGER.debug("App probe candidate %s unreachable: %s", candidate, probe_err)
-                    continue
-
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_MANUAL)
+            auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
             if auth_mode == AUTH_MODE_ADDON:
-                return await self.async_step_addon()
+                return await self._async_connect_addon(self._addon_host, self._addon_port)
 
-            self._phone_number = user_input.get(CONF_PHONE_NUMBER)
-            self._pin = user_input.get(CONF_PIN)
+            raw_phone = (user_input.get(CONF_PHONE_NUMBER) or "").strip().replace(" ", "").replace("-", "").replace("/", "")
+            if raw_phone.startswith("00"):
+                self._phone_number = "+" + raw_phone[2:]
+            elif raw_phone.startswith("+"):
+                self._phone_number = raw_phone
+            elif raw_phone.startswith("0") and len(raw_phone) >= 9:
+                self._phone_number = "+49" + raw_phone[1:]
+            else:
+                self._phone_number = "+" + raw_phone
+
+            self._pin = (user_input.get(CONF_PIN) or "").strip()
             session_token = user_input.get(CONF_SESSION_TOKEN)
 
-
-            if not self._phone_number:
+            digits_only = "".join(filter(str.isdigit, self._phone_number))
+            if not self._phone_number.startswith("+") or not (7 <= len(digits_only) <= 15):
                 errors[CONF_PHONE_NUMBER] = "invalid_phone"
             else:
                 await self.async_set_unique_id(self._phone_number.lower())
                 self._abort_if_unique_id_configured()
 
-                if self._pin:
-                    pin_stripped = self._pin.strip()
-                    if not pin_stripped.isdigit() or not (4 <= len(pin_stripped) <= 6):
-                        errors[CONF_PIN] = "invalid_pin"
+                if self._pin and (not self._pin.isdigit() or not (4 <= len(self._pin) <= 6)):
+                    errors[CONF_PIN] = "invalid_pin"
 
                 if not errors:
+                    clean_token = session_token.strip().strip('"').strip("'") if session_token else None
                     self._client = TradeRepublicAPIClient(
-                        self._phone_number, self._pin or "", session_token
+                        self._phone_number, self._pin or "", clean_token
                     )
                     try:
                         await self._client.connect()
-                        if session_token:
+                        if clean_token:
                             if await self._client.verify_session():
                                 return self.async_create_entry(
                                     title=self._phone_number or "Trade Republic",
                                     data={
                                         CONF_PHONE_NUMBER: self._phone_number,
                                         CONF_PIN: self._pin or "",
-                                        CONF_SESSION_TOKEN: session_token,
+                                        CONF_SESSION_TOKEN: clean_token,
                                         CONF_AUTH_MODE: AUTH_MODE_MANUAL,
                                     },
                                 )
