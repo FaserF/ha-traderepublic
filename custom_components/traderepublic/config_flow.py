@@ -12,6 +12,7 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
+from .addon_client import AddonClient
 from .api import (
     CannotConnectError,
     InvalidAuthError,
@@ -126,8 +127,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _async_connect_addon(self, host: str, port: int) -> ConfigFlowResult:
         """Connect to the Trade Republic Addon and fetch session token."""
         errors: dict[str, str] = {}
-        from .addon_client import AddonClient
-
         addon_client = AddonClient(default_host=host, default_port=port)
         try:
             candidate, data = await addon_client.fetch_session(

@@ -24,6 +24,7 @@ from homeassistant.helpers import storage
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
+from .addon_client import AddonClient
 from .api import InvalidAuthError, TradeRepublicAPIClient
 from .const import (
     AUTH_MODE_ADDON,
@@ -146,8 +147,6 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Auto-sync token from addon if in addon mode
             if auth_mode == AUTH_MODE_ADDON:
-                from .addon_client import AddonClient
-
                 addon_client = AddonClient(
                     default_host=addon_host, default_port=addon_port
                 )
@@ -196,8 +195,6 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             except InvalidAuthError as err:
                 # If connected via Addon, attempt an immediate token refresh via browser before failing
                 if auth_mode == AUTH_MODE_ADDON:
-                    from .addon_client import AddonClient
-
                     addon_client = AddonClient(
                         default_host=addon_host, default_port=addon_port
                     )
