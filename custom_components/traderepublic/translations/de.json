@@ -23,6 +23,22 @@
         "title": "Trade Republic App entdeckt",
         "description": "Die Trade Republic Home Assistant App wurde unter {host} gefunden. Möchtest du dich damit verbinden?"
       },
+      "addon_login": {
+        "title": "Anmeldung über Trade Republic App",
+        "description": "Gib deine Zugangsdaten ein. Die Trade Republic App löst Sicherheits- und Bot-Prüfungen automatisch im Hintergrund.",
+        "data": {
+          "phone_number": "Telefonnummer (z. B. +491701234567)",
+          "pin": "PIN (4-6 Stellen)"
+        }
+      },
+      "addon_2fa": {
+        "title": "Zwei-Faktor-Bestätigung (2FA)",
+        "description": "Bestätige die Anmeldung in deiner Trade Republic Smartphone-App oder trage unten den SMS-Code ein. Nach der Freigabe auf dem Smartphone klicke einfach direkt auf Absenden (Code kann leer bleiben).",
+        "data": {
+          "code": "SMS-Code (Optional bei Freigabe in der App)"
+        }
+      },
+
       "mfa": {
         "title": "Zwei-Faktor-Authentifizierung",
         "description": "Bitte gib den Verifizierungscode ein, der an dein Telefon oder deine App gesendet wurde.",
@@ -58,15 +74,23 @@
   "options": {
     "step": {
       "init": {
-        "title": "Trade Republic Optionen",
-        "description": "Passe das Aktualisierungsintervall und den Zinssatz an.",
+        "title": "Trade Republic Einstellungen",
+        "description": "Aktualisierungsintervall und Zinssatz anpassen oder sofortige Re-Authentifizierung direkt in Home Assistant starten.",
         "data": {
           "scan_interval": "Aktualisierungsintervall (Sekunden)",
-          "interest_rate": "Zinssatz (%)"
+          "interest_rate": "Zinssatz (%)",
+          "trigger_reauth": "Jetzt neu verbinden / Reauthentifizieren"
         }
       }
     }
   },
+  "issues": {
+    "reauth_required": {
+      "title": "Trade Republic Reauthentifizierung erforderlich",
+      "description": "Deine Trade Republic Sitzung ist abgelaufen. Bitte reauthentifiziere die Integration."
+    }
+  },
+
   "entity": {
     "sensor": {
       "net_value": {

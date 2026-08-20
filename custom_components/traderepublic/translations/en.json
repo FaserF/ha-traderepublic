@@ -23,6 +23,22 @@
         "title": "Discovered Trade Republic App",
         "description": "Trade Republic Home Assistant App was discovered at {host}. Do you want to connect to it?"
       },
+      "addon_login": {
+        "title": "Login via Trade Republic App",
+        "description": "Enter your credentials. The Trade Republic App will solve bot challenges in the background.",
+        "data": {
+          "phone_number": "Phone Number (e.g. +491701234567)",
+          "pin": "PIN (4-6 digits)"
+        }
+      },
+      "addon_2fa": {
+        "title": "2FA Confirmation",
+        "description": "Confirm the login in your Trade Republic smartphone app, or enter the SMS code below if received. If confirmed in the app, simply click Submit without entering a code.",
+        "data": {
+          "code": "SMS Code (Optional if confirmed in smartphone app)"
+        }
+      },
+
       "mfa": {
         "title": "Two-Factor Authentication",
         "description": "Please enter the verification code sent to your phone or app.",
@@ -59,11 +75,19 @@
     "step": {
       "init": {
         "title": "Trade Republic Options",
-        "description": "Adjust the update interval.",
+        "description": "Adjust update interval, interest rate, or trigger an instant re-authentication directly within Home Assistant.",
         "data": {
-          "scan_interval": "Update interval (seconds)"
+          "scan_interval": "Update interval (seconds)",
+          "interest_rate": "Interest Rate (%)",
+          "trigger_reauth": "Re-authenticate / Reconnect now"
         }
       }
+    }
+  },
+  "issues": {
+    "reauth_required": {
+      "title": "Trade Republic Re-authentication Required",
+      "description": "Your Trade Republic session has expired. Please re-authenticate your integration."
     }
   },
   "entity": {

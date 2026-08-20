@@ -66,7 +66,7 @@ class TradeRepublicAPIClient:
                     clean_token = clean_token[7:].strip()
                 headers["Authorization"] = f"Bearer {clean_token}"
                 headers["Cookie"] = (
-                    f"tr_session_id={clean_token}; sessionToken={clean_token}"
+                    f"tr_session={clean_token}; tr_session_id={clean_token}; sessionToken={clean_token}"
                 )
             try:
                 self.ws = await websockets.connect(
@@ -83,7 +83,7 @@ class TradeRepublicAPIClient:
                         "User-Agent": headers["User-Agent"],
                         "Origin": headers["Origin"],
                         "Cookie": (
-                            f"tr_session_id={clean_token}; sessionToken={clean_token}"
+                            f"tr_session={clean_token}; tr_session_id={clean_token}; sessionToken={clean_token}"
                         ),
                     }
                     try:
@@ -97,22 +97,24 @@ class TradeRepublicAPIClient:
                 else:
                     raise
             # Handshake
+            handshake_payload: dict[str, Any] = {
+                "locale": "de",
+                "platformId": "web",
+                "appVersion": "4.110.0",
+                "osVersion": "10.0.0",
+            }
+            if self.session_token:
+                handshake_payload["token"] = clean_token
             await self._send(
-                "connect 26 "
-                + json.dumps(
-                    {
-                        "locale": "de",
-                        "platformId": "web",
-                        "appVersion": "4.110.0",
-                        "osVersion": "10.0.0",
-                    }
-                )
+                "connect 26 " + json.dumps(handshake_payload)
             )
             resp = await self._recv()
             if not resp or "connected" not in resp:
                 if resp and (
                     "401" in resp
                     or "unauth" in resp.lower()
+                    or "no auth token" in resp.lower()
+                    or "error" in resp.lower()
                     or "invalid" in resp.lower()
                 ):
                     raise InvalidAuthError(
@@ -121,6 +123,7 @@ class TradeRepublicAPIClient:
                 raise CannotConnectError("Handshake failed")
         except Exception as exc:
             _LOGGER.error("Failed to connect to Trade Republic WebSocket: %s", exc)
+
             if "401" in str(exc) or (
                 hasattr(exc, "status_code") and exc.status_code == 401
             ):

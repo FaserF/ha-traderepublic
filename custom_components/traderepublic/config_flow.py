@@ -111,38 +111,60 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         import aiohttp
 
-        url = f"http://{host}:{port}/api/v1/session"
-        try:
-            async with (
-                aiohttp.ClientSession() as session,
-                session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
-            ):
-                if resp.status == 200:
-                    data = await resp.json()
-                    token = data.get("session_token")
-                    phone = data.get("phone_number") or "+49_addon_user"
+        candidate_hosts = [host]
+        for internal_name in [
+            "605cee21-traderepublic",
+            "605cee21_traderepublic",
+            "edfe50eb-traderepublic",
+            "edfe50eb_traderepublic",
+            "local-traderepublic",
+            "addon-traderepublic",
+            "traderepublic",
+            "localhost",
+            "127.0.0.1",
+        ]:
+            if internal_name not in candidate_hosts:
+                candidate_hosts.append(internal_name)
 
-                    if token:
-                        await self.async_set_unique_id(phone.lower())
-                        self._abort_if_unique_id_configured()
-                        return self.async_create_entry(
-                            title=f"Trade Republic ({phone})",
-                            data={
-                                CONF_PHONE_NUMBER: phone,
-                                CONF_PIN: "",
-                                CONF_SESSION_TOKEN: token,
-                                CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                CONF_ADDON_HOST: host,
-                                CONF_ADDON_PORT: port,
-                            },
-                        )
-                    errors["base"] = "addon_no_session"
-                else:
-                    errors["base"] = "addon_no_session"
+        for candidate in candidate_hosts:
+            url = f"http://{candidate}:{port}/api/v1/session"
+            try:
+                async with (
+                    aiohttp.ClientSession() as session,
+                    session.get(url, timeout=aiohttp.ClientTimeout(total=4)) as resp,
+                ):
+                    if resp.status == 200:
+                        data = await resp.json()
+                        token = data.get("session_token")
+                        phone = data.get("phone_number") or "+49_addon_user"
 
-        except Exception as exc:  # noqa: BLE001
-            _LOGGER.error("Failed to connect to Trade Republic addon at %s: %s", url, exc)
-            errors["base"] = "cannot_connect"
+                        if token:
+                            await self.async_set_unique_id(phone.lower())
+                            self._abort_if_unique_id_configured()
+                            return self.async_create_entry(
+                                title=f"Trade Republic ({phone})",
+                                data={
+                                    CONF_PHONE_NUMBER: phone,
+                                    CONF_PIN: "",
+                                    CONF_SESSION_TOKEN: token,
+                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                    CONF_ADDON_HOST: candidate,
+                                    CONF_ADDON_PORT: port,
+                                },
+                            )
+                        # Addon reachable but not logged in -> seamlessly forward to login within HA
+                        self._addon_host = candidate
+                        self._addon_port = port
+                        return await self.async_step_addon_login()
+                    elif resp.status in (404, 401):
+                        self._addon_host = candidate
+                        self._addon_port = port
+                        return await self.async_step_addon_login()
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Could not reach addon at %s: %s", url, exc)
+                continue
+
+        errors["base"] = "cannot_connect"
 
         return self.async_show_form(
             step_id="addon",
@@ -155,10 +177,142 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_addon_login(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Trigger login on Trade Republic App directly from HA integration."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            self._phone_number = user_input.get(CONF_PHONE_NUMBER, "").strip()
+            self._pin = user_input.get(CONF_PIN, "").strip()
+
+            if not self._phone_number:
+                errors[CONF_PHONE_NUMBER] = "invalid_phone"
+            elif not self._pin or not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
+                errors[CONF_PIN] = "invalid_pin"
+            else:
+                import aiohttp
+                url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
+                try:
+                    async with (
+                        aiohttp.ClientSession() as session,
+                        session.post(
+                            url,
+                            json={"phone_number": self._phone_number, "pin": self._pin},
+                            timeout=aiohttp.ClientTimeout(total=20),
+                        ) as resp,
+                    ):
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if data.get("success"):
+                                return await self.async_step_addon_2fa()
+                            errors["base"] = "invalid_auth"
+                        else:
+                            errors["base"] = "cannot_connect"
+                except Exception as exc:  # noqa: BLE001
+                    _LOGGER.error("Failed to init login on Trade Republic App: %s", exc)
+                    errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="addon_login",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_PHONE_NUMBER, default=self._phone_number or ""): str,
+                    vol.Required(CONF_PIN): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_addon_2fa(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Verify 2FA or check In-App approval directly from HA integration."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            code = user_input.get("code", "").strip()
+            import aiohttp
+            url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
+            try:
+                async with (
+                    aiohttp.ClientSession() as session,
+                    session.post(
+                        url,
+                        json={"code": code},
+                        timeout=aiohttp.ClientTimeout(total=20),
+                    ) as resp,
+                ):
+                    if resp.status == 200:
+                        data = await resp.json()
+                        token = data.get("session_token")
+                        if token:
+                            phone = self._phone_number or "+49_addon_user"
+                            await self.async_set_unique_id(phone.lower())
+                            self._abort_if_unique_id_configured()
+                            return self.async_create_entry(
+                                title=f"Trade Republic ({phone})",
+                                data={
+                                    CONF_PHONE_NUMBER: phone,
+                                    CONF_PIN: "",
+                                    CONF_SESSION_TOKEN: token,
+                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                    CONF_ADDON_HOST: self._addon_host,
+                                    CONF_ADDON_PORT: self._addon_port,
+                                },
+                            )
+                        errors["base"] = "invalid_code"
+                    else:
+                        errors["base"] = "invalid_code"
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.error("Failed to verify 2FA on Trade Republic App: %s", exc)
+                errors["base"] = "cannot_connect"
+
+        return self.async_show_form(
+            step_id="addon_2fa",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("code", default=""): str,
+                }
+            ),
+            errors=errors,
+        )
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Handle initial step to choose authentication method or direct manual login."""
+        # Auto-detect running Trade Republic App in background if user opened setup
+        if user_input is None and not self.context.get("addon_checked"):
+            import asyncio
+
+            self.context["addon_checked"] = True  # type: ignore[typeddict-unknown-key]
+            for candidate in [
+                "605cee21-traderepublic",
+                "605cee21_traderepublic",
+                "edfe50eb-traderepublic",
+                "edfe50eb_traderepublic",
+                "local-traderepublic",
+                "addon-traderepublic",
+                "traderepublic",
+                "localhost",
+                "127.0.0.1",
+            ]:
+                try:
+                    _, writer = await asyncio.wait_for(
+                        asyncio.open_connection(candidate, DEFAULT_ADDON_PORT),
+                        timeout=0.3,
+                    )
+                    writer.close()
+                    await writer.wait_closed()
+                    _LOGGER.info("Discovered reachable Trade Republic App on %s", candidate)
+                    self._addon_host = candidate
+                    self._addon_port = DEFAULT_ADDON_PORT
+                    self._auth_mode = AUTH_MODE_ADDON
+                    return await self._async_connect_addon(self._addon_host, self._addon_port)
+                except Exception as probe_err:  # noqa: BLE001
+                    _LOGGER.debug("App probe candidate %s unreachable: %s", candidate, probe_err)
+                    continue
+
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -169,6 +323,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._phone_number = user_input.get(CONF_PHONE_NUMBER)
             self._pin = user_input.get(CONF_PIN)
             session_token = user_input.get(CONF_SESSION_TOKEN)
+
 
             if not self._phone_number:
                 errors[CONF_PHONE_NUMBER] = "invalid_phone"
@@ -306,18 +461,22 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         entry = self.hass.config_entries.async_get_entry(self.context.get("entry_id", ""))
         auth_mode = entry.data.get(CONF_AUTH_MODE, AUTH_MODE_MANUAL) if entry else AUTH_MODE_MANUAL
-        addon_host = entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST) if entry else DEFAULT_ADDON_HOST
-        addon_port = entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT) if entry else DEFAULT_ADDON_PORT
+        self._addon_host = entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST) if entry else DEFAULT_ADDON_HOST
+        self._addon_port = entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT) if entry else DEFAULT_ADDON_PORT
 
-        # If in App mode, try auto-refreshing from App first or prompt user to log in to App Web UI
+        # If in App mode, try auto-refreshing from App or forward directly to in-HA login flow
         if auth_mode == AUTH_MODE_ADDON:
             if user_input is not None:
+                action = user_input.get("reauth_action", "refresh")
+                if action == "login":
+                    return await self.async_step_addon_login()
+
                 import aiohttp
-                url = f"http://{addon_host}:{addon_port}/api/v1/session"
+                url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
                 try:
                     async with (
                         aiohttp.ClientSession() as session,
-                        session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp,
+                        session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as resp,
                     ):
                         if resp.status == 200:
                             data = await resp.json()
@@ -329,17 +488,24 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 )
                                 await self.hass.config_entries.async_reload(entry.entry_id)
                                 return self.async_abort(reason="reauth_successful")
-                            errors["base"] = "addon_no_session"
-
-                        else:
-                            errors["base"] = "addon_no_session"
+                        # If no session present in addon, forward user directly to in-HA login form
+                        return await self.async_step_addon_login()
                 except Exception as exc:  # noqa: BLE001
                     _LOGGER.error("Failed to connect to Trade Republic App during reauth: %s", exc)
-                    errors["base"] = "cannot_connect"
+                    return await self.async_step_addon_login()
 
             return self.async_show_form(
                 step_id="reauth_confirm",
-                description_placeholders={"host": addon_host},
+                data_schema=vol.Schema(
+                    {
+                        vol.Required("reauth_action", default="refresh"): vol.In(
+                            {
+                                "refresh": "Check/Sync Session from Trade Republic App",
+                                "login": "Log in again directly within Home Assistant",
+                            }
+                        ),
+                    }
+                ),
                 errors=errors,
             )
 
@@ -367,9 +533,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     await self._client.connect()
                     if clean_token:
                         if await self._client.verify_session():
-                            entry = self.hass.config_entries.async_get_entry(
-                                self.context["entry_id"]
-                            )
                             if entry:
                                 updated_data = {
                                     **entry.data,
@@ -426,7 +589,19 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
     ) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            if user_input.get("trigger_reauth"):
+                return await self.hass.config_entries.flow.async_init(
+                    DOMAIN,
+                    context={"source": config_entries.SOURCE_REAUTH, "entry_id": self.config_entry.entry_id},
+                    data=self.config_entry.data,
+                )
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_SCAN_INTERVAL: user_input.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    CONF_INTEREST_RATE: user_input.get(CONF_INTEREST_RATE, DEFAULT_INTEREST_RATE),
+                },
+            )
 
         return self.async_show_form(
             step_id="init",
@@ -450,6 +625,7 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
                             ),
                         ),
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
+                    vol.Optional("trigger_reauth", default=False): bool,
                 }
             ),
         )

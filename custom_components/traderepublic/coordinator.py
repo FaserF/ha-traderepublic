@@ -209,9 +209,25 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     "Trade Republic authentication failed (%s). Re-authentication required.",
                     err,
                 )
+                try:
+                    from homeassistant.helpers import issue_registry as ir
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        f"reauth_required_{self.config_entry.entry_id}",
+                        is_fixable=True,
+                        is_persistent=True,
+                        severity=ir.IssueSeverity.ERROR,
+                        translation_key="reauth_required",
+                    )
+                except Exception as issue_err:  # noqa: BLE001
+                    _LOGGER.debug("Could not create repair issue: %s", issue_err)
+
+
                 raise ConfigEntryAuthFailed(
-                    "Trade Republic authentication failed"
+                    "Trade Republic authentication failed. Please re-authenticate."
                 ) from err
+
 
             except Exception as err:
                 self._consecutive_failures += 1

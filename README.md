@@ -64,11 +64,14 @@ During configuration, you can choose between two methods:
 1. 🌟 **Trade Republic Home Assistant App (Recommended)**:
    - Uses the [Trade Republic App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) running on Home Assistant.
    - Solves AWS WAF Bot Challenges automatically in a headless browser.
-   - Keeps your session alive 24/7 without needing manual token copying or reauthentication.
-   - Automatically discovered by Home Assistant!
+   - **Zero-Touch In-HA Setup:** You can perform the full login (Credentials + In-App 2FA Confirmation / SMS) directly inside Home Assistant's configuration flow.
+   - **Auto-Sync & Auto-Discovery:** Discovered automatically by Home Assistant. If an account is already logged in on the App, it connects with a single click.
+   - **Repairs & Self-Healing:** Creates Home Assistant Repair Issues if a session ever expires, allowing 1-click re-syncing or re-login directly within HA.
+   - Keeps your session alive 24/7 without needing manual token copying.
 
 2. 🔑 **Manual Session Token**:
    - Manually copy the `tr_session` cookie from your browser (instructions below).
+
 
 ---
 
