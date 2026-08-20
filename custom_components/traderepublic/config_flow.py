@@ -69,6 +69,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.info(
             "Supervisor auto-discovered Trade Republic Addon: %s", discovery_info
         )
+        await self.async_set_unique_id("traderepublic_addon")
+        self._abort_if_unique_id_configured()
         self._auth_mode = AUTH_MODE_ADDON
         self._addon_host = discovery_info.config.get("host", DEFAULT_ADDON_HOST)
         self._addon_port = int(discovery_info.config.get("port", DEFAULT_ADDON_PORT))
@@ -79,6 +81,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Handle generic discovery of Trade Republic addon."""
         _LOGGER.info("Discovered Trade Republic Addon: %s", discovery_info)
+        await self.async_set_unique_id("traderepublic_addon")
+        self._abort_if_unique_id_configured()
         self._auth_mode = AUTH_MODE_ADDON
         self._addon_host = discovery_info.get("host", DEFAULT_ADDON_HOST)
         self._addon_port = int(discovery_info.get("port", DEFAULT_ADDON_PORT))
