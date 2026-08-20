@@ -126,75 +126,63 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _async_connect_addon(self, host: str, port: int) -> ConfigFlowResult:
         """Connect to the Trade Republic Addon and fetch session token."""
         errors: dict[str, str] = {}
-        import aiohttp
+        from .addon_client import AddonClient
 
-        from .const import ADDON_CONTAINER_HOSTS
+        addon_client = AddonClient(default_host=host, default_port=port)
+        try:
+            candidate, data = await addon_client.fetch_session(preferred_host=host, port=port)
+            if candidate and data:
+                token = data.get("session_token")
+                phone = data.get("phone_number") or ""
+                is_logged_in = data.get("is_logged_in", True)
+                token_verified = data.get("token_verified", False)
 
-        candidate_hosts = [host] if host else []
-        for internal_name in ADDON_CONTAINER_HOSTS:
-            if internal_name not in candidate_hosts:
-                candidate_hosts.append(internal_name)
+                if phone:
+                    self._phone_number = phone
 
-        for candidate in candidate_hosts:
-            url = f"http://{candidate}:{port}/api/v1/session"
-            try:
-                async with (
-                    aiohttp.ClientSession() as session,
-                    session.get(url, timeout=aiohttp.ClientTimeout(total=4)) as resp,
-                ):
-                    if resp.status == 200:
-                        data = await resp.json()
-                        token = data.get("session_token")
-                        phone = data.get("phone_number") or ""
-                        is_logged_in = data.get("is_logged_in", True)
+                # If token exists and Addon marks session active, test validity before creating entry
+                if token and is_logged_in:
+                    clean_tok = token.strip().strip('"').strip("'")
+                    is_valid = token_verified
+                    if not is_valid:
+                        test_client = TradeRepublicAPIClient(phone, "", clean_tok)
+                        try:
+                            await test_client.connect()
+                            is_valid = await test_client.verify_session()
+                            await test_client.close()
+                        except Exception as test_err:  # noqa: BLE001
+                            _LOGGER.info(
+                                "Addon token verification failed (%s) -> prompting login in HA",
+                                test_err,
+                            )
+                            is_valid = False
 
-                        if phone:
-                            self._phone_number = phone
+                    if is_valid:
+                        # Addon is logged in and session is verified -> complete setup!
+                        await self.async_set_unique_id(
+                            phone.lower() if phone else "traderepublic"
+                        )
+                        self._abort_if_unique_id_configured()
+                        return self.async_create_entry(
+                            title=f"Trade Republic ({phone})"
+                            if phone
+                            else "Trade Republic",
+                            data={
+                                CONF_PHONE_NUMBER: phone,
+                                CONF_PIN: "",
+                                CONF_SESSION_TOKEN: clean_tok,
+                                CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                CONF_ADDON_HOST: candidate,
+                                CONF_ADDON_PORT: port,
+                            },
+                        )
 
-                        # If token exists and Addon marks session active, test validity before creating entry
-                        if token and is_logged_in:
-                            clean_tok = token.strip().strip('"').strip("'")
-                            test_client = TradeRepublicAPIClient(phone, "", clean_tok)
-                            try:
-                                await test_client.connect()
-                                is_valid = await test_client.verify_session()
-                                await test_client.close()
-                                if is_valid:
-                                    # Addon is logged in and session is verified -> complete setup!
-                                    await self.async_set_unique_id(
-                                        phone.lower() if phone else "traderepublic"
-                                    )
-                                    self._abort_if_unique_id_configured()
-                                    return self.async_create_entry(
-                                        title=f"Trade Republic ({phone})"
-                                        if phone
-                                        else "Trade Republic",
-                                        data={
-                                            CONF_PHONE_NUMBER: phone,
-                                            CONF_PIN: "",
-                                            CONF_SESSION_TOKEN: clean_tok,
-                                            CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                            CONF_ADDON_HOST: candidate,
-                                            CONF_ADDON_PORT: port,
-                                        },
-                                    )
-                            except Exception as test_err:  # noqa: BLE001
-                                _LOGGER.info(
-                                    "Addon token verification failed (%s) -> prompting login in HA",
-                                    test_err,
-                                )
-
-                        # Addon reachable but session missing or expired -> seamlessly forward to login prompt in HA
-                        self._addon_host = candidate
-                        self._addon_port = port
-                        return await self.async_step_addon_login()
-                    elif resp.status in (404, 401):
-                        self._addon_host = candidate
-                        self._addon_port = port
-                        return await self.async_step_addon_login()
-            except Exception as exc:  # noqa: BLE001
-                _LOGGER.debug("Could not reach addon at %s: %s", url, exc)
-                continue
+                # Addon reachable but session missing or expired -> seamlessly forward to login prompt in HA
+                self._addon_host = candidate
+                self._addon_port = port
+                return await self.async_step_addon_login()
+        finally:
+            await addon_client.close()
 
         errors["base"] = "cannot_connect"
 
