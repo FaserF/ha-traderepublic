@@ -131,7 +131,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if internal_name not in candidate_hosts:
                 candidate_hosts.append(internal_name)
 
-
         for candidate in candidate_hosts:
             url = f"http://{candidate}:{port}/api/v1/session"
             try:

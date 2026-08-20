@@ -36,7 +36,6 @@ ADDON_CONTAINER_HOSTS = [
 ]
 
 
-
 # API WebSocket URL
 TR_WS_URL = "wss://api.traderepublic.com"
 

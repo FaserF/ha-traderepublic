@@ -170,7 +170,8 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
 
                                 if latest_token and latest_token != session_token:
                                     _LOGGER.info(
-                                        "Fetched updated session token from Trade Republic Addon (%s)", cand
+                                        "Fetched updated session token from Trade Republic Addon (%s)",
+                                        cand,
                                     )
                                     session_token = latest_token
                                     self.hass.config_entries.async_update_entry(
@@ -183,7 +184,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                     )
                                 break
                     except Exception as err:  # noqa: BLE001
-                        _LOGGER.debug("Could not pre-fetch token from addon (%s): %s", cand, err)
+                        _LOGGER.debug(
+                            "Could not pre-fetch token from addon (%s): %s", cand, err
+                        )
 
             pin = self.config_entry.data.get(CONF_PIN, "")
             client = TradeRepublicAPIClient(
@@ -231,7 +234,8 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     for rhost in refresh_hosts:
                         try:
                             _LOGGER.info(
-                                "Attempting automatic session refresh via Trade Republic Add-on (%s)...", rhost
+                                "Attempting automatic session refresh via Trade Republic Add-on (%s)...",
+                                rhost,
                             )
                             url = f"http://{rhost}:{addon_port}/api/v1/refresh"
                             async with (
@@ -243,7 +247,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                 if refresh_resp.status == 200:
                                     refresh_data = await refresh_resp.json()
                                     refreshed_token = refresh_data.get("session_token")
-                                    if refreshed_token and refreshed_token != session_token:
+                                    if (
+                                        refreshed_token
+                                        and refreshed_token != session_token
+                                    ):
                                         _LOGGER.info(
                                             "Successfully refreshed session token from Add-on, retrying connection..."
                                         )
@@ -279,9 +286,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                             return data
                         except Exception as refresh_err:  # noqa: BLE001
                             _LOGGER.debug(
-                                "Add-on auto-refresh attempt failed on %s: %s", rhost, refresh_err
+                                "Add-on auto-refresh attempt failed on %s: %s",
+                                rhost,
+                                refresh_err,
                             )
-
 
                 _LOGGER.error(
                     "Trade Republic authentication failed (%s). Re-authentication required.",
