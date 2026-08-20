@@ -126,7 +126,9 @@ class TradeRepublicAPIClient:
             if "401" in str(exc) or (
                 hasattr(exc, "status_code") and exc.status_code == 401
             ):
-                _LOGGER.warning("Trade Republic session token expired (HTTP 401): %s", exc)
+                _LOGGER.warning(
+                    "Trade Republic session token expired (HTTP 401): %s", exc
+                )
                 raise InvalidAuthError(
                     f"Session token expired or invalid (HTTP 401): {exc}"
                 ) from exc

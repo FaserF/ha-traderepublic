@@ -348,7 +348,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 },
                             )
                         err_msg = data.get("error", "").lower()
-                        if "timeout" in err_msg or "expired" in err_msg or "2 minutes" in err_msg:
+                        if (
+                            "timeout" in err_msg
+                            or "expired" in err_msg
+                            or "2 minutes" in err_msg
+                        ):
                             errors["base"] = "timeout_expired"
                         else:
                             errors["base"] = "invalid_code"
