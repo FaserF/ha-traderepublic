@@ -20,22 +20,6 @@ async def test_config_flow_addon(hass: HomeAssistant) -> None:
         CONF_SESSION_TOKEN,
     )
 
-    result = await hass.config_entries.flow.async_init(
-        DOMAIN, context={"source": config_entries.SOURCE_USER}
-    )
-    assert result["type"] == "form"
-    assert result["step_id"] == "user"
-
-    # Select Addon mode
-    result2 = await hass.config_entries.flow.async_configure(
-        result["flow_id"],
-        {
-            CONF_AUTH_MODE: AUTH_MODE_ADDON,
-        },
-    )
-    assert result2["type"] == "form"
-    assert result2["step_id"] == "addon"
-
     async def mock_connect_addon(self, host, port):
         await self.async_set_unique_id("+491701234567")
         return self.async_create_entry(
@@ -60,15 +44,22 @@ async def test_config_flow_addon(hass: HomeAssistant) -> None:
             return_value=True,
         ),
     ):
-        result3 = await hass.config_entries.flow.async_configure(
-            result2["flow_id"],
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+        assert result["type"] == "form"
+        assert result["step_id"] == "user"
+
+        # Select Addon mode -> triggers mock_connect_addon directly
+        result2 = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
             {
-                CONF_ADDON_HOST: "127.0.0.1",
-                CONF_ADDON_PORT: 8095,
+                CONF_AUTH_MODE: AUTH_MODE_ADDON,
             },
         )
-        assert result3["type"] == "create_entry"
-        assert result3["title"] == "Trade Republic (+491701234567)"
+        assert result2["type"] == "create_entry"
+        assert result2["title"] == "Trade Republic (+491701234567)"
+
 
 
 @pytest.mark.asyncio
