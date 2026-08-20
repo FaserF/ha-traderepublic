@@ -61,7 +61,6 @@ async def test_config_flow_addon(hass: HomeAssistant) -> None:
         assert result2["title"] == "Trade Republic (+491701234567)"
 
 
-
 @pytest.mark.asyncio
 async def test_config_flow_discovery(hass: HomeAssistant) -> None:
     """Test discovery step for Trade Republic Add-on."""
