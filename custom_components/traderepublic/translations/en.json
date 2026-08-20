@@ -58,6 +58,7 @@
         "title": "Reauthenticate Trade Republic",
         "description": "Your session has expired. If using the App, simply sync or log in again via Home Assistant. If using Manual Mode, enter a fresh session token or PIN.",
         "data": {
+          "reauth_action": "Action",
           "pin": "PIN (Manual Mode only, 4-6 digits)",
           "session_token": "Session Token (Manual Mode only)"
         }
