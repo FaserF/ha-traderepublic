@@ -172,16 +172,15 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 entry,
                                 data={
                                     **entry.data,
-                                    CONF_PHONE_NUMBER: phone or entry.data.get(CONF_PHONE_NUMBER, ""),
+                                    CONF_PHONE_NUMBER: phone
+                                    or entry.data.get(CONF_PHONE_NUMBER, ""),
                                     CONF_SESSION_TOKEN: clean_tok,
                                     CONF_AUTH_MODE: AUTH_MODE_ADDON,
                                     CONF_ADDON_HOST: candidate,
                                     CONF_ADDON_PORT: port,
                                 },
                             )
-                            await self.hass.config_entries.async_reload(
-                                entry.entry_id
-                            )
+                            await self.hass.config_entries.async_reload(entry.entry_id)
                             return self.async_abort(reason="reauth_successful")
 
                         await self.async_set_unique_id(

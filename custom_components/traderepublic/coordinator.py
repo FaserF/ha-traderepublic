@@ -110,9 +110,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
 
         if auth_mode == AUTH_MODE_ADDON:
-            addon_client = AddonClient(
-                default_host=addon_host, default_port=addon_port
-            )
+            addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
             try:
                 cand, addon_data = await addon_client.fetch_session(
                     preferred_host=addon_host, port=addon_port
