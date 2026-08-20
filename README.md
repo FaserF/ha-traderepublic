@@ -57,31 +57,43 @@ Adding the integration is done entirely via the UI.
    - **Session Token (sessionToken)** (Highly recommended)
    - **PIN** (Only needed if not using a Session Token)
 
-### 💡 Why is the `sessionToken` required?
-Other standalone Python libraries (like `pytr` or `tr-api` CLI clients) can automate the login process because they run on machines where they can spawn **Playwright** (a headless browser engine). Playwright automatically downloads a full web browser (Chromium) and executes the complex JavaScript code required to solve Trade Republic's **AWS WAF (Web Application Firewall) Bot Control** challenge.
+### Connection Methods
 
-Inside **Home Assistant**, running Playwright/Chromium is not feasible:
-- Home Assistant Core runs in a restricted, containerized environment (often Docker on Home Assistant OS).
-- Containerized environments lack the native graphical libraries and binary dependencies needed to run a headless browser.
-- Automating browser solvers inside Home Assistant would make the integration highly unstable and prone to breaking on every Home Assistant OS update.
+During configuration, you can choose between two methods:
 
-Therefore, manually importing your active browser `sessionToken` is the only stable, reliable, and secure method to connect.
+1. 🌟 **Trade Republic Home Assistant App (Recommended)**:
+   - Uses the [Trade Republic App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) running on Home Assistant.
+   - Solves AWS WAF Bot Challenges automatically in a headless browser.
+   - Keeps your session alive 24/7 without needing manual token copying or reauthentication.
+   - Automatically discovered by Home Assistant!
 
-### 🔑 How to retrieve your `sessionToken`
+2. 🔑 **Manual Session Token**:
+   - Manually copy the `tr_session` cookie from your browser (instructions below).
+
+---
+
+### 💡 Why is the Home Assistant App or `sessionToken` required?
+Standalone Python clients require a full headless browser (Playwright/Chromium) to solve Trade Republic's **AWS WAF (Web Application Firewall) Bot Control** JavaScript challenge.
+
+Since Home Assistant Core runs in a restricted container, running a browser directly inside Core is not feasible. The **Trade Republic Home Assistant App** runs Playwright & Chromium in its own dedicated container, solving the WAF challenges and serving the active session to this integration.
+
+---
+
+### 🔑 Manual Token: How to retrieve your `sessionToken`
 1. Open your desktop web browser (e.g., Chrome, Firefox, Edge) and log in to [app.traderepublic.com](https://app.traderepublic.com).
 2. Once logged in, press **F12** (or right-click anywhere and select **Inspect**) to open the Developer Tools.
 3. Navigate to the **Application** tab (Chrome/Edge) or **Storage** tab (Firefox).
 4. In the left sidebar under the **Storage** section, expand **Cookies** and select `https://app.traderepublic.com`.
 5. Find the cookie named **`tr_session`**. Its value is a very long JWT string starting with `eyJhbGci...`.
 6. Copy the **entire** value of the `tr_session` cookie (the complete long string). Do NOT copy the `tr_claims` cookie or only parts of the token.
-7. Paste this complete token into the **Session Token (sessionToken)** field during the Home Assistant integration setup. You can leave the **PIN** field blank.
+7. Paste this complete token into the **Session Token (sessionToken)** field during the Home Assistant integration setup.
 
 > [!WARNING]
-> **Session Lifetime & Expiry (AWS WAF Limitations):** 
-> - **Short-lived Session:** Trade Republic's backend assigns `tr_session` tokens a lifetime of ~20–30 minutes when idle.
-> - **Keep-Alive via Poll Interval:** The integration's default update interval is set to **15 minutes** (`900s`), actively fetching metrics before idle expiry to help keep the WebSocket session alive. You can adjust this in the integration options (minimum 10 minutes).
-> - **No Background Auto-Renewal:** Full session regeneration from scratch requires passing Trade Republic's **AWS WAF Bot Control** JavaScript challenge, which cannot run headless inside Home Assistant containers.
-> - **Reauthentication:** If the session expires or is terminated (e.g. by logging out on the web browser), Home Assistant prompts for **Reauthentication**. Simply copy a fresh `tr_session` cookie from [app.traderepublic.com](https://app.traderepublic.com) and submit it.
+> **Manual Session Lifetime & Expiry (AWS WAF Limitations):** 
+> - **Short-lived Session:** When using manual mode, `tr_session` tokens have an idle lifetime of ~20–30 minutes unless refreshed.
+> - **Keep-Alive via Poll Interval:** The integration's default update interval is set to **15 minutes** (`900s`) to help keep active sessions alive.
+> - **Permanent Solution:** Install the [Trade Republic Home Assistant App](https://github.com/FaserF/hassio-addons/tree/master/traderepublic) for 24/7 automated session renewal.
+
 
 
 

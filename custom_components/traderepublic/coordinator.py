@@ -26,11 +26,17 @@ from homeassistant.util import dt as dt_util
 
 from .api import InvalidAuthError, TradeRepublicAPIClient
 from .const import (
+    AUTH_MODE_ADDON,
+    CONF_ADDON_HOST,
+    CONF_ADDON_PORT,
+    CONF_AUTH_MODE,
     CONF_INTEREST_RATE,
     CONF_PHONE_NUMBER,
     CONF_PIN,
     CONF_SCAN_INTERVAL,
     CONF_SESSION_TOKEN,
+    DEFAULT_ADDON_HOST,
+    DEFAULT_ADDON_PORT,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     MIN_SCAN_INTERVAL,
@@ -134,6 +140,39 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
 
             # Run API call
             session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
+            auth_mode = self.config_entry.data.get(CONF_AUTH_MODE)
+            addon_host = self.config_entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
+            addon_port = self.config_entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
+
+            # Auto-sync token from addon if in addon mode
+            if auth_mode == AUTH_MODE_ADDON:
+                import aiohttp
+                try:
+                    url = f"http://{addon_host}:{addon_port}/api/v1/session"
+                    async with (
+                        aiohttp.ClientSession() as http_session,
+                        http_session.get(
+                            url, timeout=aiohttp.ClientTimeout(total=5)
+                        ) as resp,
+                    ):
+                        if resp.status == 200:
+                            addon_data = await resp.json()
+                            latest_token = addon_data.get("session_token")
+
+                            if latest_token and latest_token != session_token:
+                                _LOGGER.info("Fetched updated session token from Trade Republic Addon")
+                                session_token = latest_token
+                                self.hass.config_entries.async_update_entry(
+                                    self.config_entry,
+                                    data={
+                                        **self.config_entry.data,
+                                        CONF_SESSION_TOKEN: session_token,
+                                    },
+                                )
+
+                except Exception as err:  # noqa: BLE001
+                    _LOGGER.debug("Could not pre-fetch token from addon: %s", err)
+
             pin = self.config_entry.data.get(CONF_PIN, "")
             client = TradeRepublicAPIClient(
                 self.phone_number,
@@ -173,6 +212,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 raise ConfigEntryAuthFailed(
                     "Trade Republic authentication failed"
                 ) from err
+
             except Exception as err:
                 self._consecutive_failures += 1
                 # Calculate backoff

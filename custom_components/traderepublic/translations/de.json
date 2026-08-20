@@ -3,12 +3,25 @@
     "step": {
       "user": {
         "title": "Mit Trade Republic verbinden",
-        "description": "Gib deine Telefonnummer und entweder deinen sessionToken (dringend empfohlen) oder deine Login-PIN ein. Die Authentifizierung ist rein lesend.",
+        "description": "Wähle deine Anmeldemethode. Die Nutzung der Home Assistant App wird empfohlen, um Sitzungen dauerhaft aktiv zu halten.",
         "data": {
+          "auth_mode": "Verbindungsmethode",
           "phone_number": "Telefonnummer (z. B. +491701234567)",
           "pin": "PIN (4-6 Stellen)",
           "session_token": "Session Token (sessionToken UUID aus dem Local Storage)"
         }
+      },
+      "addon": {
+        "title": "Trade Republic App",
+        "description": "Verbindung über die Trade Republic Home Assistant App zur dauerhaften Sitzungsaktualisierung.",
+        "data": {
+          "addon_host": "App Host / IP",
+          "addon_port": "App Port"
+        }
+      },
+      "addon_confirm": {
+        "title": "Trade Republic App entdeckt",
+        "description": "Die Trade Republic Home Assistant App wurde unter {host} gefunden. Möchtest du dich damit verbinden?"
       },
       "mfa": {
         "title": "Zwei-Faktor-Authentifizierung",
@@ -19,20 +32,24 @@
       },
       "reauth_confirm": {
         "title": "Trade Republic reauthentifizieren",
-        "description": "Deine Session ist abgelaufen. Bitte gib einen neuen sessionToken oder deine PIN ein, um dich erneut zu verbinden.",
+        "description": "Deine Session ist abgelaufen. Wenn du die Trade Republic Home Assistant App nutzt, stelle sicher, dass du in der App-Weboberfläche eingeloggt bist und klicke auf Absenden. Andernfalls gib einen neuen sessionToken oder deine PIN ein.",
         "data": {
           "pin": "PIN (4-6 Stellen)",
           "session_token": "Session Token (sessionToken UUID)"
         }
       }
+
     },
     "error": {
-      "cannot_connect": "Verbindung zum Server fehlgeschlagen",
+      "cannot_connect": "Verbindung zum Server oder zur App fehlgeschlagen",
       "invalid_auth": "Ungültige Anmeldedaten oder sessionToken",
       "invalid_code": "Ungültiger Verifizierungscode",
       "invalid_pin": "Die PIN muss zwischen 4 und 6 Ziffern lang sein (nur Zahlen)",
+      "invalid_phone": "Bitte gib eine gültige Telefonnummer ein",
+      "addon_no_session": "Keine aktive Sitzung in der Trade Republic App gefunden. Bitte öffne zuerst die Web-Oberfläche der App und melde dich an.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten"
     },
+
     "abort": {
       "already_configured": "Dieses Konto ist bereits konfiguriert.",
       "reauth_successful": "Reauthentifizierung war erfolgreich"

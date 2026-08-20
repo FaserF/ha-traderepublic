@@ -3,12 +3,25 @@
     "step": {
       "user": {
         "title": "Connect to Trade Republic",
-        "description": "Enter your phone number and either your sessionToken (Highly Recommended) or your login PIN. Authentication is read-only.",
+        "description": "Choose your authentication method. Using the Home Assistant App is recommended to keep sessions alive automatically.",
         "data": {
+          "auth_mode": "Connection Method",
           "phone_number": "Phone Number (e.g. +491701234567)",
           "pin": "PIN (4-6 digits)",
           "session_token": "Session Token (sessionToken UUID from Local Storage)"
         }
+      },
+      "addon": {
+        "title": "Trade Republic App",
+        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically.",
+        "data": {
+          "addon_host": "App Host / IP",
+          "addon_port": "App Port"
+        }
+      },
+      "addon_confirm": {
+        "title": "Discovered Trade Republic App",
+        "description": "Trade Republic Home Assistant App was discovered at {host}. Do you want to connect to it?"
       },
       "mfa": {
         "title": "Two-Factor Authentication",
@@ -19,20 +32,24 @@
       },
       "reauth_confirm": {
         "title": "Reauthenticate Trade Republic",
-        "description": "Your session has expired. Please enter a new sessionToken or your PIN to reconnect.",
+        "description": "Your session has expired. If you are using the Trade Republic Home Assistant App, ensure you are logged in via the App Web UI and click Submit. Otherwise, enter a fresh sessionToken or your PIN.",
         "data": {
           "pin": "PIN (4-6 digits)",
           "session_token": "Session Token (sessionToken UUID)"
         }
       }
+
     },
     "error": {
-      "cannot_connect": "Failed to connect to the server",
+      "cannot_connect": "Failed to connect to the server or App",
       "invalid_auth": "Invalid credentials or sessionToken",
       "invalid_code": "Invalid verification code",
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
+      "invalid_phone": "Please provide a valid phone number",
+      "addon_no_session": "No active session found in the Trade Republic App. Please open the App Web UI first and log in.",
       "unknown": "An unexpected error occurred"
     },
+
     "abort": {
       "already_configured": "This account is already configured.",
       "reauth_successful": "Reauthentication was successful"
