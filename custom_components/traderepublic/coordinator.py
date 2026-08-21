@@ -121,9 +121,17 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     is_addon_logged_in = addon_data.get("is_logged_in", True)
                     if not is_addon_logged_in:
                         _LOGGER.warning(
-                            "Trade Republic Add-on reports session expired. Raising auth failed."
+                            "Trade Republic Add-on reports session expired — "
+                            "raising UpdateFailed so coordinator retries automatically."
                         )
-                        raise InvalidAuthError("Session in Add-on is marked as expired")
+                        # Use UpdateFailed (not ConfigEntryAuthFailed) so HA retries
+                        # automatically on the next update cycle. The integration
+                        # self-heals as soon as the addon is re-authenticated in the
+                        # addon UI without requiring any manual action in HA.
+                        raise UpdateFailed(
+                            "Trade Republic session expired in Add-on. "
+                            "Please re-authenticate in the Add-on UI."
+                        )
 
                     if latest_token and latest_token != session_token:
                         _LOGGER.info(
@@ -139,25 +147,8 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                 CONF_ADDON_HOST: cand,
                             },
                         )
-            except InvalidAuthError as err:
-                self.config_entry.async_start_reauth(self.hass)
-                try:
-                    from homeassistant.helpers import issue_registry as ir
-
-                    ir.async_create_issue(
-                        self.hass,
-                        DOMAIN,
-                        f"reauth_required_{self.config_entry.entry_id}",
-                        is_fixable=True,
-                        is_persistent=True,
-                        severity=ir.IssueSeverity.ERROR,
-                        translation_key="reauth_required",
-                    )
-                except Exception as issue_err:  # noqa: BLE001
-                    _LOGGER.debug("Could not create repair issue: %s", issue_err)
-                raise ConfigEntryAuthFailed(
-                    "Trade Republic authentication failed. Please re-authenticate."
-                ) from err
+            except (InvalidAuthError, UpdateFailed):
+                raise
             except Exception as e:  # noqa: BLE001
                 _LOGGER.debug("Addon fetch check info: %s", e)
             finally:
