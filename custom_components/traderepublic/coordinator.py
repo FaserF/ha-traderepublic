@@ -117,6 +117,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 requested_categories: list[str] = ["portfolio", "cash"]
                 try:
                     from homeassistant.helpers import entity_registry as er
+
                     registry = er.async_get(self.hass)
                     entry_entities = er.async_entries_for_config_entry(
                         registry, self.config_entry.entry_id
@@ -130,7 +131,11 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         for e in entry_entities
                     )
                     has_timeline = any(
-                        not e.disabled and ("timeline" in (e.unique_id or "").lower() or "transaction" in (e.unique_id or "").lower())
+                        not e.disabled
+                        and (
+                            "timeline" in (e.unique_id or "").lower()
+                            or "transaction" in (e.unique_id or "").lower()
+                        )
                         for e in entry_entities
                     )
                     if has_card:
@@ -141,7 +146,13 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         requested_categories.append("timeline")
                 except Exception as ent_err:  # noqa: BLE001
                     _LOGGER.debug("Could not inspect entity registry: %s", ent_err)
-                    requested_categories = ["portfolio", "cash", "savings", "card", "timeline"]
+                    requested_categories = [
+                        "portfolio",
+                        "cash",
+                        "savings",
+                        "card",
+                        "timeline",
+                    ]
 
                 # 1. Fetch live metrics directly from Addon /api/v1/data with requested categories
                 cand, addon_data = await addon_client.fetch_data(
