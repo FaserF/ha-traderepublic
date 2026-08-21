@@ -113,9 +113,41 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         if auth_mode == AUTH_MODE_ADDON:
             addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
             try:
-                # 1. Fetch live metrics directly from Addon /api/v1/data
+                # Detect active/enabled entity categories in Home Assistant
+                requested_categories: list[str] = ["portfolio", "cash"]
+                try:
+                    from homeassistant.helpers import entity_registry as er
+                    registry = er.async_get(self.hass)
+                    entry_entities = er.async_entries_for_config_entry(
+                        registry, self.config_entry.entry_id
+                    )
+                    has_card = any(
+                        not e.disabled and "card" in (e.unique_id or "").lower()
+                        for e in entry_entities
+                    )
+                    has_savings = any(
+                        not e.disabled and "savings" in (e.unique_id or "").lower()
+                        for e in entry_entities
+                    )
+                    has_timeline = any(
+                        not e.disabled and ("timeline" in (e.unique_id or "").lower() or "transaction" in (e.unique_id or "").lower())
+                        for e in entry_entities
+                    )
+                    if has_card:
+                        requested_categories.append("card")
+                    if has_savings:
+                        requested_categories.append("savings")
+                    if has_timeline:
+                        requested_categories.append("timeline")
+                except Exception as ent_err:  # noqa: BLE001
+                    _LOGGER.debug("Could not inspect entity registry: %s", ent_err)
+                    requested_categories = ["portfolio", "cash", "savings", "card", "timeline"]
+
+                # 1. Fetch live metrics directly from Addon /api/v1/data with requested categories
                 cand, addon_data = await addon_client.fetch_data(
-                    preferred_host=addon_host, port=addon_port
+                    preferred_host=addon_host,
+                    port=addon_port,
+                    requested_categories=requested_categories,
                 )
                 if cand and addon_data:
                     is_addon_logged_in = addon_data.get("is_logged_in", True)

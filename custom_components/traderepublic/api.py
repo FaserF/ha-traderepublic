@@ -709,7 +709,10 @@ class AddonClient:
         return None, None
 
     async def fetch_data(
-        self, preferred_host: str | None = None, port: int | None = None
+        self,
+        preferred_host: str | None = None,
+        port: int | None = None,
+        requested_categories: list[str] | None = None,
     ) -> tuple[str | None, dict[str, Any] | None]:
         """Fetch live portfolio and metrics directly from the Trade Republic Add-on."""
         import aiohttp
@@ -717,12 +720,15 @@ class AddonClient:
         session = await self._get_session()
         target_port = port or self.default_port
         hosts = self.get_candidate_hosts(preferred_host or self.default_host)
+        params = {}
+        if requested_categories:
+            params["categories"] = ",".join(requested_categories)
 
         for host in hosts:
             url = f"http://{host}:{target_port}/api/v1/data"
             try:
                 async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=5)
+                    url, params=params, timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
