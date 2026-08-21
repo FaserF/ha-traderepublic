@@ -139,8 +139,25 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                 CONF_ADDON_HOST: cand,
                             },
                         )
-            except InvalidAuthError:
-                raise
+            except InvalidAuthError as err:
+                self.config_entry.async_start_reauth(self.hass)
+                try:
+                    from homeassistant.helpers import issue_registry as ir
+
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        f"reauth_required_{self.config_entry.entry_id}",
+                        is_fixable=True,
+                        is_persistent=True,
+                        severity=ir.IssueSeverity.ERROR,
+                        translation_key="reauth_required",
+                    )
+                except Exception as issue_err:  # noqa: BLE001
+                    _LOGGER.debug("Could not create repair issue: %s", issue_err)
+                raise ConfigEntryAuthFailed(
+                    "Trade Republic authentication failed. Please re-authenticate."
+                ) from err
             except Exception as e:  # noqa: BLE001
                 _LOGGER.debug("Addon fetch check info: %s", e)
             finally:
@@ -256,6 +273,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 except Exception as issue_err:  # noqa: BLE001
                     _LOGGER.debug("Could not create repair issue: %s", issue_err)
 
+                self.config_entry.async_start_reauth(self.hass)
                 raise ConfigEntryAuthFailed(
                     "Trade Republic authentication failed. Please re-authenticate."
                 ) from err
