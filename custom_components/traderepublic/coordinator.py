@@ -215,7 +215,9 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 raise
             except Exception as e:
                 _LOGGER.warning("Could not reach Trade Republic Add-on: %s", e)
-                raise UpdateFailed(f"Failed to communicate with Trade Republic Add-on: {e}") from e
+                raise UpdateFailed(
+                    f"Failed to communicate with Trade Republic Add-on: {e}"
+                ) from e
             finally:
                 await addon_client.close()
 
