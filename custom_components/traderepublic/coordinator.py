@@ -130,10 +130,19 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         )
 
                     payload_data = addon_data.get("data")
-                    if payload_data and isinstance(payload_data, dict) and (
-                        payload_data.get("net_value", 0.0) > 0.0 or payload_data.get("available_cash", 0.0) > 0.0 or payload_data.get("holdings")
+                    if (
+                        payload_data
+                        and isinstance(payload_data, dict)
+                        and (
+                            payload_data.get("net_value", 0.0) > 0.0
+                            or payload_data.get("available_cash", 0.0) > 0.0
+                            or payload_data.get("holdings")
+                        )
                     ):
-                        _LOGGER.debug("Received complete live metrics directly from Add-on (%s)", cand)
+                        _LOGGER.debug(
+                            "Received complete live metrics directly from Add-on (%s)",
+                            cand,
+                        )
                         self._last_success = dt_util.now()
                         self._consecutive_failures = 0
                         self._backoff_until = None
@@ -168,7 +177,6 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Addon fetch check info: %s", e)
             finally:
                 await addon_client.close()
-
 
         # Restart resistance (only if update is not forced and we already completed a live fetch in this lifecycle)
         if (

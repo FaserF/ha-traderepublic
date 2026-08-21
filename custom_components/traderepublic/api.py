@@ -763,4 +763,3 @@ class AddonClient:
                 continue
 
         return None, None
-
