@@ -113,26 +113,41 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         if auth_mode == AUTH_MODE_ADDON:
             addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
             try:
-                cand, addon_data = await addon_client.fetch_session(
+                # 1. Fetch live metrics directly from Addon /api/v1/data
+                cand, addon_data = await addon_client.fetch_data(
                     preferred_host=addon_host, port=addon_port
                 )
                 if cand and addon_data:
-                    latest_token = addon_data.get("session_token")
                     is_addon_logged_in = addon_data.get("is_logged_in", True)
                     if not is_addon_logged_in:
                         _LOGGER.warning(
                             "Trade Republic Add-on reports session expired — "
                             "raising UpdateFailed so coordinator retries automatically."
                         )
-                        # Use UpdateFailed (not ConfigEntryAuthFailed) so HA retries
-                        # automatically on the next update cycle. The integration
-                        # self-heals as soon as the addon is re-authenticated in the
-                        # addon UI without requiring any manual action in HA.
                         raise UpdateFailed(
                             "Trade Republic session expired in Add-on. "
                             "Please re-authenticate in the Add-on UI."
                         )
 
+                    payload_data = addon_data.get("data")
+                    if payload_data and isinstance(payload_data, dict) and (
+                        payload_data.get("net_value", 0.0) > 0.0 or payload_data.get("available_cash", 0.0) > 0.0 or payload_data.get("holdings")
+                    ):
+                        _LOGGER.debug("Received complete live metrics directly from Add-on (%s)", cand)
+                        self._last_success = dt_util.now()
+                        self._consecutive_failures = 0
+                        self._backoff_until = None
+                        self._has_fetched_live = True
+                        payload_data["last_success"] = self._last_success.isoformat()
+                        await self.store.async_save(payload_data)
+                        return payload_data
+
+                # Fallback: fetch session token if data endpoint not yet populated
+                cand, session_res = await addon_client.fetch_session(
+                    preferred_host=addon_host, port=addon_port
+                )
+                if cand and session_res:
+                    latest_token = session_res.get("session_token")
                     if latest_token and latest_token != session_token:
                         _LOGGER.info(
                             "Fetched updated session token from Trade Republic Addon (%s)",
@@ -153,6 +168,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 _LOGGER.debug("Addon fetch check info: %s", e)
             finally:
                 await addon_client.close()
+
 
         # Restart resistance (only if update is not forced and we already completed a live fetch in this lifecycle)
         if (
