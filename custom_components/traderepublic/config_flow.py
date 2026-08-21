@@ -140,66 +140,49 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 token = data.get("session_token")
                 phone = data.get("phone_number") or ""
                 is_logged_in = data.get("is_logged_in", True)
-                token_verified = data.get("token_verified", False)
 
                 if phone:
                     self._phone_number = phone
 
-                # If token exists and Addon marks session active, test validity before creating entry
+                # If token exists and Addon marks session active, create entry directly
                 if token and is_logged_in:
                     clean_tok = token.strip().strip('"').strip("'")
-                    is_valid = token_verified
-                    if not is_valid:
-                        test_client = TradeRepublicAPIClient(phone, "", clean_tok)
-                        try:
-                            await test_client.connect()
-                            is_valid = await test_client.verify_session()
-                            await test_client.close()
-                        except Exception as test_err:  # noqa: BLE001
-                            _LOGGER.info(
-                                "Addon token verification failed (%s) -> prompting login in HA",
-                                test_err,
-                            )
-                            is_valid = False
-
-                    if is_valid:
-                        # Addon is logged in and session is verified -> complete setup or update reauth!
-                        entry = self.hass.config_entries.async_get_entry(
-                            self.context.get("entry_id", "")
-                        )
-                        if entry:
-                            self.hass.config_entries.async_update_entry(
-                                entry,
-                                data={
-                                    **entry.data,
-                                    CONF_PHONE_NUMBER: phone
-                                    or entry.data.get(CONF_PHONE_NUMBER, ""),
-                                    CONF_SESSION_TOKEN: clean_tok,
-                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                    CONF_ADDON_HOST: candidate,
-                                    CONF_ADDON_PORT: port,
-                                },
-                            )
-                            await self.hass.config_entries.async_reload(entry.entry_id)
-                            return self.async_abort(reason="reauth_successful")
-
-                        await self.async_set_unique_id(
-                            phone.lower() if phone else "traderepublic"
-                        )
-                        self._abort_if_unique_id_configured()
-                        return self.async_create_entry(
-                            title=f"Trade Republic ({phone})"
-                            if phone
-                            else "Trade Republic",
+                    entry = self.hass.config_entries.async_get_entry(
+                        self.context.get("entry_id", "")
+                    )
+                    if entry:
+                        self.hass.config_entries.async_update_entry(
+                            entry,
                             data={
-                                CONF_PHONE_NUMBER: phone,
-                                CONF_PIN: "",
+                                **entry.data,
+                                CONF_PHONE_NUMBER: phone
+                                or entry.data.get(CONF_PHONE_NUMBER, ""),
                                 CONF_SESSION_TOKEN: clean_tok,
                                 CONF_AUTH_MODE: AUTH_MODE_ADDON,
                                 CONF_ADDON_HOST: candidate,
                                 CONF_ADDON_PORT: port,
                             },
                         )
+                        await self.hass.config_entries.async_reload(entry.entry_id)
+                        return self.async_abort(reason="reauth_successful")
+
+                    await self.async_set_unique_id(
+                        phone.lower() if phone else "traderepublic"
+                    )
+                    self._abort_if_unique_id_configured()
+                    return self.async_create_entry(
+                        title=f"Trade Republic ({phone})"
+                        if phone
+                        else "Trade Republic",
+                        data={
+                            CONF_PHONE_NUMBER: phone,
+                            CONF_PIN: "",
+                            CONF_SESSION_TOKEN: clean_tok,
+                            CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                            CONF_ADDON_HOST: candidate,
+                            CONF_ADDON_PORT: port,
+                        },
+                    )
 
                 # Addon reachable but session missing or expired -> seamlessly forward to login prompt in HA
                 self._addon_host = candidate
@@ -594,22 +577,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     )
                     if candidate and data:
                         token = data.get("session_token")
-                        if token and entry:
-                            # Verify token is actually valid before accepting it
-                            client = TradeRepublicAPIClient(
-                                phone_number=entry.data.get(CONF_PHONE_NUMBER, ""),
-                                pin=entry.data.get(CONF_PIN, ""),
-                                session_token=token,
-                            )
-                            try:
-                                valid = await client.verify_session()
-                            except Exception:  # noqa: BLE001
-                                valid = False
-                            if not valid:
-                                _LOGGER.warning(
-                                    "Addon session token is present but invalid — prompting re-login"
-                                )
-                                return await self.async_step_addon_login()
+                        is_logged_in = data.get("is_logged_in", True)
+                        if token and is_logged_in and entry:
+                            # In Add-on mode, the Add-on is the single source of truth and manages
+                            # the WebSocket. We trust the Addon's validated session rather than
+                            # opening a competing connection from HA that TR could reject/drop.
                             self.hass.config_entries.async_update_entry(
                                 entry,
                                 data={
@@ -723,6 +695,10 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage the options."""
+        auth_mode = self.config_entry.data.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
+        min_interval = 15 if auth_mode == AUTH_MODE_ADDON else MIN_SCAN_INTERVAL
+        default_interval = 60 if auth_mode == AUTH_MODE_ADDON else DEFAULT_SCAN_INTERVAL
+
         if user_input is not None:
             if user_input.get("trigger_reauth"):
                 return await self.hass.config_entries.flow.async_init(
@@ -737,7 +713,7 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
                 title="",
                 data={
                     CONF_SCAN_INTERVAL: user_input.get(
-                        CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                        CONF_SCAN_INTERVAL, default_interval
                     ),
                     CONF_INTEREST_RATE: user_input.get(
                         CONF_INTEREST_RATE, DEFAULT_INTEREST_RATE
@@ -754,10 +730,10 @@ class TradeRepublicOptionsFlow(config_entries.OptionsFlow):
                         default=self.config_entry.options.get(
                             CONF_SCAN_INTERVAL,
                             self.config_entry.data.get(
-                                CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                                CONF_SCAN_INTERVAL, default_interval
                             ),
                         ),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=min_interval)),
                     vol.Optional(
                         CONF_INTEREST_RATE,
                         default=self.config_entry.options.get(

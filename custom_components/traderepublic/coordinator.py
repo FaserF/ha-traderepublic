@@ -68,10 +68,18 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             hass, 1, f"{DOMAIN}_{self.phone_number.replace('+', '')}"
         )
 
-        interval_seconds = max(
-            MIN_SCAN_INTERVAL,
-            config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-        )
+        auth_mode = config.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
+        if auth_mode == AUTH_MODE_ADDON:
+            # In Add-on mode, queries are internal Docker network HTTP calls (0 API rate-limit risk)
+            # Default to 60s (min 15s) so HA displays fresh live data from the Addon keeper
+            configured_interval = config.get(CONF_SCAN_INTERVAL, 60)
+            interval_seconds = max(15, configured_interval)
+        else:
+            # Direct API mode: enforce strict anti-ban intervals (min 10m, default 15m)
+            interval_seconds = max(
+                MIN_SCAN_INTERVAL,
+                config.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+            )
 
         super().__init__(
             hass,
@@ -180,6 +188,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                             payload_data.get("net_value", 0.0) > 0.0
                             or payload_data.get("available_cash", 0.0) > 0.0
                             or payload_data.get("holdings")
+                            or "savings_plans_count" in payload_data
                         )
                     ):
                         _LOGGER.debug(
@@ -194,30 +203,19 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         await self.store.async_save(payload_data)
                         return payload_data
 
-                # Fallback: fetch session token if data endpoint not yet populated
-                cand, session_res = await addon_client.fetch_session(
-                    preferred_host=addon_host, port=addon_port
+                # If in Add-on mode, the Add-on is the single source of truth.
+                # Never fall through to create direct WebSocket connections from HA.
+                _LOGGER.warning(
+                    "Trade Republic Add-on did not return metrics yet — waiting for Add-on stream"
                 )
-                if cand and session_res:
-                    latest_token = session_res.get("session_token")
-                    if latest_token and latest_token != session_token:
-                        _LOGGER.info(
-                            "Fetched updated session token from Trade Republic Addon (%s)",
-                            cand,
-                        )
-                        session_token = latest_token
-                        self.hass.config_entries.async_update_entry(
-                            self.config_entry,
-                            data={
-                                **self.config_entry.data,
-                                CONF_SESSION_TOKEN: session_token,
-                                CONF_ADDON_HOST: cand,
-                            },
-                        )
+                raise UpdateFailed(
+                    "Waiting for Trade Republic Add-on live stream to populate metrics."
+                )
             except (InvalidAuthError, UpdateFailed):
                 raise
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.debug("Addon fetch check info: %s", e)
+            except Exception as e:
+                _LOGGER.warning("Could not reach Trade Republic Add-on: %s", e)
+                raise UpdateFailed(f"Failed to communicate with Trade Republic Add-on: {e}") from e
             finally:
                 await addon_client.close()
 
