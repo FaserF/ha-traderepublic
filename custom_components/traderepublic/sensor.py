@@ -99,6 +99,10 @@ class TradeRepublicNetWorthSensor(TradeRepublicBaseEntity):
         return {
             "holdings": self.coordinator.data.get("holdings", []),
             "invested_capital": self.coordinator.data.get("invested_capital", 0.0),
+            "invested_stocks_etfs": self.coordinator.data.get("invested_stocks_etfs", 0.0),
+            "invested_crypto": self.coordinator.data.get("invested_crypto", 0.0),
+            "value_stocks_etfs": self.coordinator.data.get("value_stocks_etfs", 0.0),
+            "value_crypto": self.coordinator.data.get("value_crypto", 0.0),
             "total_profit": self.coordinator.data.get("total_profit", 0.0),
             "total_profit_percent": self.coordinator.data.get(
                 "total_profit_percent", 0.0
@@ -173,6 +177,18 @@ class TradeRepublicInvestedSensor(TradeRepublicBaseEntity):
         if not self.coordinator.data:
             return None
         return self.coordinator.data.get("invested_capital")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return breakdown attributes for Crypto vs Stocks/ETFs."""
+        if not self.coordinator.data:
+            return None
+        return {
+            "invested_stocks_etfs": self.coordinator.data.get("invested_stocks_etfs", 0.0),
+            "invested_crypto": self.coordinator.data.get("invested_crypto", 0.0),
+            "value_stocks_etfs": self.coordinator.data.get("value_stocks_etfs", 0.0),
+            "value_crypto": self.coordinator.data.get("value_crypto", 0.0),
+        }
 
 
 class TradeRepublicTotalProfitSensor(TradeRepublicBaseEntity):
