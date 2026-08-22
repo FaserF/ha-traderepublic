@@ -173,11 +173,11 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     if not is_addon_logged_in:
                         _LOGGER.warning(
                             "Trade Republic Add-on reports session expired — "
-                            "raising UpdateFailed so coordinator retries automatically."
+                            "raising ConfigEntryAuthFailed to prompt re-authentication."
                         )
-                        raise UpdateFailed(
+                        raise ConfigEntryAuthFailed(
                             "Trade Republic session expired in Add-on. "
-                            "Please re-authenticate in the Add-on UI."
+                            "Please re-authenticate in the Add-on UI or via Reauth."
                         )
 
                     payload_data = addon_data.get("data")

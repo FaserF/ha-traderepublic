@@ -537,6 +537,17 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._phone_number = entry_data.get(CONF_PHONE_NUMBER)
         return await self.async_step_reauth_confirm()
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle a reconfiguration flow initialized by the user."""
+        entry = self.hass.config_entries.async_get_entry(
+            self.context.get("entry_id", "")
+        )
+        if entry:
+            self._phone_number = entry.data.get(CONF_PHONE_NUMBER)
+        return await self.async_step_reauth_confirm(user_input)
+
     async def async_step_reauth_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
