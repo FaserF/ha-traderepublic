@@ -96,6 +96,12 @@ Think of this security shield like a digital gatekeeper: when you open Trade Rep
 | **Smartphone In-App Approval** | 🟢 **Supported:** One-tap confirmation on phone | 🟠 **Limited:** Requires SMS code or pre-existing browser token |
 | **Multi-Account Support** | 🟢 **Yes** | 🟢 **Yes** |
 
+> [!NOTE]
+> **ℹ️ Understanding Add-on Restarts & Session Expiration:**
+> Trade Republic actively ties your session to the running live connection.
+> - **During 24/7 normal operation:** The Add-on keeps your session continuously renewed and active.
+> - **When the Add-on is restarted or updated:** Trade Republic's security servers terminate the session when the connection closes. When this happens, simply tap **"Reconfigure"** in Home Assistant or open the Add-on UI to confirm a fresh 1-tap approval in your Trade Republic mobile app.
+
 ---
 
 ### 🔑 Manual Mode: How to copy your `sessionToken` (If not using the App)
