@@ -112,8 +112,8 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Skipping update due to active backoff")
             return self.data
 
-        # Auto-sync token from addon on every cycle/startup if in addon mode
-        auth_mode = self.config_entry.data.get(CONF_AUTH_MODE)
+        # Auto-sync token from addon on every cycle/startup if in addon mode (or default)
+        auth_mode = self.config_entry.data.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
         addon_host = self.config_entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
         addon_port = self.config_entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
         session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
