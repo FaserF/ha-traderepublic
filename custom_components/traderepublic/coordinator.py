@@ -211,7 +211,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed(
                     "Waiting for Trade Republic Add-on live stream to populate metrics."
                 )
-            except (InvalidAuthError, UpdateFailed):
+            except (ConfigEntryAuthFailed, InvalidAuthError, UpdateFailed):
                 raise
             except Exception as e:
                 _LOGGER.warning("Could not reach Trade Republic Add-on: %s", e)
