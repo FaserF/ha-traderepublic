@@ -30,7 +30,9 @@ async def test_coordinator_update(hass: HomeAssistant, mock_config_entry) -> Non
             "invested_capital": 14000.00,
             "total_profit": 1420.50,
             "total_profit_percent": 10.15,
-            "holdings": [{"isin": "US88160R1014", "name": "Tesla Inc.", "value": 4500.0}],
+            "holdings": [
+                {"isin": "US88160R1014", "name": "Tesla Inc.", "value": 4500.0}
+            ],
             "card_status": "ACTIVE",
             "recent_transactions": [{"title": "Dividend", "amount": 25.0}],
         },
@@ -73,4 +75,3 @@ async def test_coordinator_auth_failed_when_session_expired(
         pytest.raises(ConfigEntryAuthFailed),
     ):
         await coordinator._async_update_data()
-
