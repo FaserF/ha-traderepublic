@@ -205,6 +205,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         # Clean up any lingering reauth repairs on successful live fetch
                         try:
                             from homeassistant.helpers import issue_registry as ir
+
                             ir.async_delete_issue(
                                 self.hass,
                                 DOMAIN,
