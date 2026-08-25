@@ -204,7 +204,16 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         return payload_data
 
                 # If in Add-on mode, the Add-on is the single source of truth.
-                # Never fall through to create direct WebSocket connections from HA.
+                # If cached data is available on HA restart, serve cached data while stream populates
+                if self.data and (
+                    self.data.get("net_value", 0.0) > 0.0
+                    or self.data.get("available_cash", 0.0) > 0.0
+                ):
+                    _LOGGER.debug(
+                        "Trade Republic Add-on stream populating — returning cached data in interim"
+                    )
+                    return self.data
+
                 _LOGGER.warning(
                     "Trade Republic Add-on did not return metrics yet — waiting for Add-on stream"
                 )
