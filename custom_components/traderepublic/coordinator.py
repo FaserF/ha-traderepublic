@@ -201,6 +201,18 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         self._has_fetched_live = True
                         payload_data["last_success"] = self._last_success.isoformat()
                         await self.store.async_save(payload_data)
+
+                        # Clean up any lingering reauth repairs on successful live fetch
+                        try:
+                            from homeassistant.helpers import issue_registry as ir
+                            ir.async_delete_issue(
+                                self.hass,
+                                DOMAIN,
+                                f"reauth_required_{self.config_entry.entry_id}",
+                            )
+                        except Exception:  # noqa: BLE001
+                            pass
+
                         return payload_data
 
                 # If in Add-on mode, the Add-on is the single source of truth.
