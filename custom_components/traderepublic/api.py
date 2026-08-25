@@ -7,6 +7,7 @@ WARNING: Under no circumstances should buy, sell, or order execution methods be 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import ssl
@@ -166,7 +167,7 @@ class TradeRepublicAPIClient:
 
             try:
                 data = json.loads(payload_str)
-            except (json.JSONDecodeError, TypeError):
+            except json.JSONDecodeError, TypeError:
                 data = {"raw": payload_str}
 
             if isinstance(data, dict):
@@ -187,7 +188,7 @@ class TradeRepublicAPIClient:
                     return self.session_token
 
             raise OTPRequiredError("Verification code required")
-        except (OTPRequiredError, InvalidAuthError):
+        except OTPRequiredError, InvalidAuthError:
             raise
         except Exception as exc:
             raise InvalidAuthError(f"Login failed: {exc}") from exc
@@ -386,12 +387,10 @@ class TradeRepublicAPIClient:
                                         or target_obj.get("interest")
                                     )
                                     if api_rate is not None:
-                                        try:
+                                        with contextlib.suppress(ValueError, TypeError):
                                             results["api_interest_rate"] = float(
                                                 api_rate
                                             )
-                                        except (ValueError, TypeError):
-                                            pass
                                 has_cash = True
                             elif sub_id == sub_savings_id:
                                 results["savings_plans_count"] = len(
@@ -431,7 +430,7 @@ class TradeRepublicAPIClient:
                                     )
                                 results["recent_transactions"] = txs
                                 has_timeline = True
-                        except (ValueError, KeyError, TypeError):
+                        except ValueError, KeyError, TypeError:
                             continue
                     elif status == "E":
                         try:
@@ -514,7 +513,7 @@ class TradeRepublicAPIClient:
                                             if p is not None:
                                                 try:
                                                     return float(p)
-                                                except (ValueError, TypeError):
+                                                except ValueError, TypeError:
                                                     pass
                                         return None
 
@@ -526,7 +525,7 @@ class TradeRepublicAPIClient:
                                     )
                                     if extracted_price is not None:
                                         prices[pos["isin"]] = extracted_price
-                            except (ValueError, KeyError, TypeError, AttributeError):
+                            except ValueError, KeyError, TypeError, AttributeError:
                                 continue
 
             # Phase 3: Calculate totals
@@ -540,7 +539,7 @@ class TradeRepublicAPIClient:
                 try:
                     net_size = float(pos.get("netSize", 0.0))
                     average_buy_in = float(pos.get("averageBuyIn", 0.0))
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
 
                 pos_invested = net_size * average_buy_in
@@ -609,7 +608,7 @@ class TradeRepublicAPIClient:
                 await self._send(f"unsub {sub_id}")
 
             return results
-        except (InvalidAuthError, OTPRequiredError):
+        except InvalidAuthError, OTPRequiredError:
             raise
         except Exception as exc:
             _LOGGER.error("Failed to fetch Trade Republic portfolio data: %s", exc)
@@ -631,7 +630,7 @@ class TradeRepublicAPIClient:
         if self.ws:
             try:
                 return await asyncio.wait_for(self.ws.recv(), timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return None
         return None
 

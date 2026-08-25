@@ -97,7 +97,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             if "last_success" in cache:
                 try:
                     self._last_success = dt_util.parse_datetime(cache["last_success"])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     self._last_success = None
             _LOGGER.debug("Loaded cached Trade Republic data")
 
@@ -233,7 +233,7 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 raise UpdateFailed(
                     "Waiting for Trade Republic Add-on live stream to populate metrics."
                 )
-            except (ConfigEntryAuthFailed, InvalidAuthError, UpdateFailed):
+            except ConfigEntryAuthFailed, InvalidAuthError, UpdateFailed:
                 raise
             except Exception as e:
                 _LOGGER.warning("Could not reach Trade Republic Add-on: %s", e)

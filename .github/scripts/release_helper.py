@@ -239,7 +239,7 @@ def main():
 
     # Assemble release body
     released_at = (
-        datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M") + " UTC"
+        datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M") + " UTC"
     )
     body_parts = [
         f"# Trade Republic {version}  {channel_badge}",
