@@ -103,3 +103,129 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         )
         assert result["type"] == "create_entry"
         assert result["title"] == "Trade Republic (+491701234567)"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_2fa_timeout_and_restart(hass: HomeAssistant) -> None:
+    """Test addon 2FA timeout handling and restart on submit."""
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+    flow._phone_number = "+491701234567"
+    flow._pin = "1234"
+
+    # Step 1: User verifies but challenge timed out
+    class MockRespTimeout:
+        status = 200
+
+        async def json(self):
+            return {"error": "The login challenge timed out (2 minutes exceeded)."}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockSessionTimeout:
+        def post(self, url, json=None, timeout=None):
+            return MockRespTimeout()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with patch("aiohttp.ClientSession", return_value=MockSessionTimeout()):
+        res = await flow.async_step_addon_2fa(user_input={"code": ""})
+        assert res["type"] == "form"
+        assert res["step_id"] == "addon_2fa"
+        assert res["errors"]["base"] == "timeout_expired"
+        assert flow._addon_2fa_timed_out is True
+
+    # Step 2: User clicks Submit again -> triggers login/init restart
+    class MockRespRestartSuccess:
+        status = 200
+
+        async def json(self):
+            return {"success": True}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockSessionRestart:
+        def post(self, url, json=None, timeout=None):
+            return MockRespRestartSuccess()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with patch("aiohttp.ClientSession", return_value=MockSessionRestart()):
+        res2 = await flow.async_step_addon_2fa(user_input={"code": ""})
+        assert res2["type"] == "form"
+        assert res2["step_id"] == "addon_2fa"
+        assert res2["errors"] == {}
+        assert flow._addon_2fa_timed_out is False
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_2fa_approval_pending(hass: HomeAssistant) -> None:
+    """Test addon 2FA approval pending message when user submits without code."""
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+    flow._phone_number = "+491701234567"
+    flow._pin = "1234"
+
+    class MockRespPending:
+        status = 200
+
+        async def json(self):
+            return {"error": "Approval pending"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockSessionPending:
+        def post(self, url, json=None, timeout=None):
+            return MockRespPending()
+
+        def get(self, url, timeout=None):
+            return MockRespPending()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with (
+        patch("aiohttp.ClientSession", return_value=MockSessionPending()),
+        patch("asyncio.sleep", return_value=None),
+    ):
+        res = await flow.async_step_addon_2fa(user_input={"code": ""})
+        assert res["type"] == "form"
+        assert res["step_id"] == "addon_2fa"
+        assert res["errors"]["base"] == "approval_pending"
+
+        # If user explicitly entered code, error is invalid_code
+        res_code = await flow.async_step_addon_2fa(user_input={"code": "1234"})
+        assert res_code["type"] == "form"
+        assert res_code["step_id"] == "addon_2fa"
+        assert res_code["errors"]["base"] == "invalid_code"

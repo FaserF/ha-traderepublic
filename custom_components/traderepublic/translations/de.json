@@ -72,7 +72,8 @@
       "invalid_pin": "Die PIN muss zwischen 4 und 6 Ziffern lang sein (nur Zahlen)",
       "invalid_phone": "Bitte gib eine gültige Telefonnummer ein",
       "addon_no_session": "Keine aktive Sitzung in der Trade Republic App gefunden. Bitte öffne zuerst die Web-Oberfläche der App und melde dich an.",
-      "timeout_expired": "Die Anmeldeaufforderung ist abgelaufen (2 Minuten überschritten). Du warst zu langsam mit der Bestätigung. Bitte starte eine neue Anmeldung.",
+      "timeout_expired": "Die Anmeldeaufforderung ist abgelaufen (2 Minuten überschritten). Klicke auf Absenden, um die Anmeldung neu zu starten.",
+      "approval_pending": "Die Anmeldung wurde in der Trade Republic App noch nicht bestätigt. Bitte bestätige die Anfrage auf deinem Smartphone und klicke erneut auf Absenden oder gib den SMS-Code ein.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten"
     },
 

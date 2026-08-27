@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Mapping
 from typing import Any
@@ -62,6 +63,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._auth_mode: str = AUTH_MODE_MANUAL
         self._addon_host: str = DEFAULT_ADDON_HOST
         self._addon_port: int = DEFAULT_ADDON_PORT
+        self._addon_2fa_timed_out: bool = False
 
     async def async_step_hassio(  # type: ignore[override]
         self, discovery_info: HassioServiceInfo
@@ -267,7 +269,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(
                         CONF_PHONE_NUMBER, default=self._phone_number or ""
                     ): str,
-                    vol.Required(CONF_PIN): str,
+                    vol.Required(CONF_PIN, default=self._pin or ""): str,
                 }
             ),
             errors=errors,
@@ -279,68 +281,133 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Verify 2FA or check In-App approval directly from HA integration."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            code = user_input.get("code", "").strip()
             import aiohttp
 
-            url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
-            try:
-                async with (
-                    aiohttp.ClientSession() as session,
-                    session.post(
-                        url,
-                        json={"code": code},
-                        timeout=aiohttp.ClientTimeout(total=20),
-                    ) as resp,
-                ):
-                    if resp.status == 200:
-                        data = await resp.json()
-                        token = data.get("session_token")
-                        if token:
-                            phone = self._phone_number or "+49_addon_user"
-                            entry = self.hass.config_entries.async_get_entry(
-                                self.context.get("entry_id", "")
-                            )
-                            if entry:
-                                self.hass.config_entries.async_update_entry(
-                                    entry,
-                                    data={
-                                        **entry.data,
-                                        CONF_PHONE_NUMBER: phone,
-                                        CONF_SESSION_TOKEN: token,
-                                        CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                        CONF_ADDON_HOST: self._addon_host,
-                                        CONF_ADDON_PORT: self._addon_port,
-                                    },
-                                )
-                                await self.hass.config_entries.async_reload(
-                                    entry.entry_id
-                                )
-                                return self.async_abort(reason="reauth_successful")
+            if self._addon_2fa_timed_out:
+                self._addon_2fa_timed_out = False
+                if self._phone_number and self._pin:
+                    url_init = (
+                        f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
+                    )
+                    try:
+                        async with (
+                            aiohttp.ClientSession() as session,
+                            session.post(
+                                url_init,
+                                json={
+                                    "phone_number": self._phone_number,
+                                    "pin": self._pin,
+                                },
+                                timeout=aiohttp.ClientTimeout(total=20),
+                            ) as resp,
+                        ):
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if data.get("success"):
+                                    return self.async_show_form(
+                                        step_id="addon_2fa",
+                                        data_schema=vol.Schema(
+                                            {
+                                                vol.Optional("code", default=""): str,
+                                            }
+                                        ),
+                                        errors={},
+                                    )
+                    except Exception as exc:  # noqa: BLE001
+                        _LOGGER.error(
+                            "Failed to restart login after timeout on Trade Republic App: %s",
+                            exc,
+                        )
+                return await self.async_step_addon_login()
 
-                            await self.async_set_unique_id(phone.lower())
-                            self._abort_if_unique_id_configured()
-                            return self.async_create_entry(
-                                title=f"Trade Republic ({phone})",
+            code = user_input.get("code", "").strip()
+
+            url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
+            session_url = (
+                f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
+            )
+            try:
+                async with aiohttp.ClientSession() as session:
+                    token: str | None = None
+                    max_attempts = 4 if not code else 1
+
+                    for attempt in range(max_attempts):
+                        async with session.post(
+                            url,
+                            json={"code": code},
+                            timeout=aiohttp.ClientTimeout(total=10),
+                        ) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                token = data.get("session_token")
+                                if token:
+                                    break
+                                err_msg = data.get("error", "").lower()
+                                if (
+                                    "timeout" in err_msg
+                                    or "expired" in err_msg
+                                    or "2 minutes" in err_msg
+                                ):
+                                    self._addon_2fa_timed_out = True
+                                    errors["base"] = "timeout_expired"
+                                    break
+
+                        # Fallback check on active session
+                        if not token:
+                            try:
+                                async with session.get(
+                                    session_url,
+                                    timeout=aiohttp.ClientTimeout(total=3),
+                                ) as s_resp:
+                                    if s_resp.status == 200:
+                                        s_data = await s_resp.json()
+                                        if s_data.get("session_token") and s_data.get(
+                                            "is_logged_in", True
+                                        ):
+                                            token = s_data.get("session_token")
+                                            break
+                            except Exception:  # noqa: BLE001
+                                pass
+
+                        if not code and attempt < max_attempts - 1:
+                            await asyncio.sleep(1.5)
+
+                    if token:
+                        phone = self._phone_number or "+49_addon_user"
+                        entry = self.hass.config_entries.async_get_entry(
+                            self.context.get("entry_id", "")
+                        )
+                        if entry:
+                            self.hass.config_entries.async_update_entry(
+                                entry,
                                 data={
+                                    **entry.data,
                                     CONF_PHONE_NUMBER: phone,
-                                    CONF_PIN: "",
                                     CONF_SESSION_TOKEN: token,
                                     CONF_AUTH_MODE: AUTH_MODE_ADDON,
                                     CONF_ADDON_HOST: self._addon_host,
                                     CONF_ADDON_PORT: self._addon_port,
                                 },
                             )
-                        err_msg = data.get("error", "").lower()
-                        if (
-                            "timeout" in err_msg
-                            or "expired" in err_msg
-                            or "2 minutes" in err_msg
-                        ):
-                            errors["base"] = "timeout_expired"
-                        else:
-                            errors["base"] = "invalid_code"
-                    else:
-                        errors["base"] = "invalid_code"
+                            await self.hass.config_entries.async_reload(entry.entry_id)
+                            return self.async_abort(reason="reauth_successful")
+
+                        await self.async_set_unique_id(phone.lower())
+                        self._abort_if_unique_id_configured()
+                        return self.async_create_entry(
+                            title=f"Trade Republic ({phone})",
+                            data={
+                                CONF_PHONE_NUMBER: phone,
+                                CONF_PIN: "",
+                                CONF_SESSION_TOKEN: token,
+                                CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                CONF_ADDON_HOST: self._addon_host,
+                                CONF_ADDON_PORT: self._addon_port,
+                            },
+                        )
+
+                    if not errors:
+                        errors["base"] = "invalid_code" if code else "approval_pending"
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.error("Failed to verify 2FA on Trade Republic App: %s", exc)
                 errors["base"] = "cannot_connect"

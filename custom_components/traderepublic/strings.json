@@ -73,7 +73,8 @@
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
       "invalid_phone": "Please provide a valid phone number",
       "addon_no_session": "No active session found in the Trade Republic App. Please open the App Web UI first and log in.",
-      "timeout_expired": "The login challenge timed out (2 minutes exceeded). You took too long to confirm. Please start a new login.",
+      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to restart the login.",
+      "approval_pending": "Login not yet confirmed in Trade Republic app. Please approve the prompt on your smartphone and click Submit again, or enter the SMS code.",
       "unknown": "An unexpected error occurred"
     },
 
