@@ -286,9 +286,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             if self._addon_2fa_timed_out:
                 self._addon_2fa_timed_out = False
                 if self._phone_number and self._pin:
-                    url_init = (
-                        f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
-                    )
+                    url_init = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
                     try:
                         async with (
                             aiohttp.ClientSession() as session,
@@ -323,9 +321,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             code = user_input.get("code", "").strip()
 
             url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
-            session_url = (
-                f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
-            )
+            session_url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
             try:
                 async with aiohttp.ClientSession() as session:
                     token: str | None = None
