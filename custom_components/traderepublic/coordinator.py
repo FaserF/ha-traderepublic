@@ -243,6 +243,18 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
             finally:
                 await addon_client.close()
 
+        # ----------------------------------------------------------------
+        # Below this line: Manual/Direct WebSocket mode only.
+        # In Add-on mode the block above always returns or raises, so this
+        # code is unreachable. The guard makes it explicit.
+        # ----------------------------------------------------------------
+        if auth_mode == AUTH_MODE_ADDON:
+            # Should never be reached — defensive guard.
+            raise UpdateFailed(
+                "Trade Republic Add-on mode: unexpected code path reached. "
+                "All TR traffic must go through the Add-on."
+            )
+
         # Restart resistance (only if update is not forced and we already completed a live fetch in this lifecycle)
         if (
             not self._force_update
@@ -299,41 +311,23 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         },
                     )
             except InvalidAuthError as err:
-                # If connected via Addon, attempt an immediate token refresh via browser before failing
+                # In Add-on mode the Add-on is the sole TR traffic channel.
+                # A direct WebSocket connection from the integration would bypass
+                # the Add-on and compete with it — TR may reject/drop the Add-on
+                # session. Instead, immediately trigger reauth so the user logs
+                # in again via the Add-on.
                 if auth_mode == AUTH_MODE_ADDON:
-                    addon_client = AddonClient(
-                        default_host=addon_host, default_port=addon_port
+                    _LOGGER.warning(
+                        "Trade Republic Add-on session expired or invalid (%s). "
+                        "Triggering re-authentication.",
+                        err,
                     )
-                    try:
-                        rhost, refreshed_token = await addon_client.trigger_refresh(
-                            preferred_host=addon_host, port=addon_port
-                        )
-                        if (
-                            rhost
-                            and refreshed_token
-                            and refreshed_token != session_token
-                        ):
-                            _LOGGER.info(
-                                "Successfully refreshed session token from Add-on (%s), retrying connection...",
-                                rhost,
-                            )
-                            self.hass.config_entries.async_update_entry(
-                                self.config_entry,
-                                data={
-                                    **self.config_entry.data,
-                                    CONF_SESSION_TOKEN: refreshed_token,
-                                    CONF_ADDON_HOST: rhost,
-                                },
-                            )
-                            refreshed_client = TradeRepublicAPIClient(
-                                self.phone_number,
-                                pin,
-                                refreshed_token,
-                            )
-                            return await self._fetch_client_data(refreshed_client, pin)
-                    finally:
-                        await addon_client.close()
+                    self.config_entry.async_start_reauth(self.hass)
+                    raise ConfigEntryAuthFailed(
+                        "Trade Republic Add-on session expired. Please re-authenticate."
+                    ) from err
 
+                # Manual mode: create repair issue and trigger reauth
                 _LOGGER.error(
                     "Trade Republic authentication failed (%s). Re-authentication required.",
                     err,

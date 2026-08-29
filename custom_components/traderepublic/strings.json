@@ -20,7 +20,7 @@
 
       "addon": {
         "title": "Trade Republic App",
-        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically.",
+        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically. Please ensure the Trade Republic App add-on is installed, running and accessible (default container host: a0d7b954-traderepublic / 127.0.0.1, port 8095).",
         "data": {
           "addon_host": "App Host / IP",
           "addon_port": "App Port"
@@ -40,11 +40,8 @@
         }
       },
       "addon_2fa": {
-        "title": "2FA Confirmation",
-        "description": "Confirm the login in your Trade Republic smartphone app, or enter the SMS code below if received. If confirmed in the app, simply click Submit without entering a code.",
-        "data": {
-          "code": "SMS Code (Optional if confirmed in smartphone app)"
-        }
+        "title": "Confirm Login in Trade Republic App",
+        "description": "A login request has been sent to your Trade Republic smartphone app. Please open the app and approve the login prompt. Once approved, click Submit.\n\n⚠️ The 4-digit push code is no longer supported by Trade Republic (deprecated in their API). Only in-app approval works."
       },
 
       "mfa": {
@@ -67,14 +64,17 @@
 
     },
     "error": {
-      "cannot_connect": "Failed to connect to the server or App",
-      "invalid_auth": "Invalid credentials or sessionToken",
+      "cannot_connect": "Failed to connect to Trade Republic servers.",
+      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (default: a0d7b954-traderepublic:8095).",
+      "invalid_auth": "Invalid credentials. Please check your phone number and PIN.",
       "invalid_code": "Invalid verification code",
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
-      "invalid_phone": "Please provide a valid phone number",
-      "addon_no_session": "No active session found in the Trade Republic App. Please open the App Web UI first and log in.",
-      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to restart the login.",
-      "approval_pending": "Login not yet confirmed in Trade Republic app. Please approve the prompt on your smartphone and click Submit again, or enter the SMS code.",
+      "invalid_phone": "Please provide a valid international phone number (e.g. +491701234567)",
+      "addon_no_session": "No active session found in the Trade Republic Add-on. Please open the Add-on Web UI and log in first.",
+      "addon_api_error": "Trade Republic rejected the login request (MISSING_REQUIRED_HEADER or WAF token error). This is an Add-on issue — please check Add-on logs, restart the Add-on, or wait for an Add-on update.",
+      "addon_api_outdated": "Trade Republic has disabled the v1 login API (returned 426 CLIENT_VERSION_OUTDATED). The Add-on must be updated to support the current v2 push-approval login. Please update the Trade Republic Add-on.",
+      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to send a new login request to your Trade Republic app.",
+      "approval_pending": "Login not yet confirmed. Please open your Trade Republic smartphone app and approve the login prompt, then click Submit again.",
       "unknown": "An unexpected error occurred"
     },
 

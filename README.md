@@ -104,6 +104,20 @@ Think of this security shield like a digital gatekeeper: when you open Trade Rep
 
 ---
 
+### 🌐 Network Architecture: Ingress vs. Host Port Exposure
+
+#### Why you normally **do NOT need to open or scan a host port**:
+- **Home Assistant Ingress:** The Trade Republic App Web UI is accessed securely via Home Assistant Ingress. Ingress routes traffic directly through Home Assistant's authenticated web interface without exposing any port to your local network.
+- **Internal Container Communication:** The integration communicates directly with the add-on through the internal Home Assistant Docker network (e.g. `http://a0d7b954-traderepublic:8095` or `http://127.0.0.1:8095`). Port 8095 is open **internally** between containers, which is why external port scanners on your Home Assistant host IP address will **not** (and do not need to) see port 8095.
+
+#### When would a host port be needed?
+- Only if you are running Home Assistant Core in a standalone container or on another server and running the Trade Republic Add-on on a completely separate machine across the physical network.
+
+#### ⚠️ Security Recommendation:
+- Exposing port 8095 on your host network is **not recommended**. Leaving financial session endpoints unauthenticated on the local network creates unnecessary security risks. Keep host port mapping disabled and let Home Assistant Ingress and the internal container network handle communication securely.
+
+---
+
 ### 🔑 Manual Mode: How to copy your `sessionToken` (If not using the App)
 1. Open your desktop web browser (e.g., Chrome, Firefox, Edge) and log in to [app.traderepublic.com](https://app.traderepublic.com).
 2. Once logged in, press **F12** (or right-click anywhere and select **Inspect**) to open Developer Tools.

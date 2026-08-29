@@ -20,7 +20,7 @@
 
       "addon": {
         "title": "Trade Republic App",
-        "description": "Verbinde über die Trade Republic Home Assistant App für automatische Keep-Alive Sitzungen.",
+        "description": "Verbinde über die Trade Republic Home Assistant App für automatische Keep-Alive Sitzungen. Stelle sicher, dass das Trade Republic Add-on installiert, gestartet und erreichbar ist (Standard-Container-Host: a0d7b954-traderepublic / 127.0.0.1, Port 8095).",
         "data": {
           "addon_host": "App Host / IP",
           "addon_port": "App Port"
@@ -40,11 +40,8 @@
         }
       },
       "addon_2fa": {
-        "title": "2FA Bestätigung",
-        "description": "Bestätige die Anmeldung in deiner Trade Republic Smartphone-App oder gib den SMS-Code unten ein. Bei In-App-Freigabe einfach ohne Code auf Absenden klicken.",
-        "data": {
-          "code": "SMS Code (Optional bei In-App Bestätigung)"
-        }
+        "title": "Anmeldung in Trade Republic App bestätigen",
+        "description": "Eine Anmeldeanfrage wurde an deine Trade Republic Smartphone-App gesendet. Bitte öffne die App und bestätige die Anmeldeanfrage. Danach hier auf Weiter klicken.\n\n⚠️ Der 4-stellige Push-Code wird von Trade Republic nicht mehr unterstützt (in der API abgekündigt). Nur die In-App-Bestätigung funktioniert noch."
       },
 
       "mfa": {
@@ -66,14 +63,17 @@
 
     },
     "error": {
-      "cannot_connect": "Verbindung zum Server oder zur App fehlgeschlagen",
-      "invalid_auth": "Ungültige Anmeldedaten oder sessionToken",
+      "cannot_connect": "Verbindung zu den Trade Republic Servern fehlgeschlagen.",
+      "cannot_connect_addon": "Verbindung zum Trade Republic Add-on fehlgeschlagen. Bitte stelle sicher, dass das Add-on gestartet und unter Host/Port erreichbar ist (Standard: a0d7b954-traderepublic:8095).",
+      "invalid_auth": "Ungültige Anmeldedaten. Bitte überprüfe Telefonnummer und PIN.",
       "invalid_code": "Ungültiger Verifizierungscode",
       "invalid_pin": "Die PIN muss zwischen 4 und 6 Ziffern lang sein (nur Zahlen)",
-      "invalid_phone": "Bitte gib eine gültige Telefonnummer ein",
-      "addon_no_session": "Keine aktive Sitzung in der Trade Republic App gefunden. Bitte öffne zuerst die Web-Oberfläche der App und melde dich an.",
-      "timeout_expired": "Die Anmeldeaufforderung ist abgelaufen (2 Minuten überschritten). Klicke auf Absenden, um die Anmeldung neu zu starten.",
-      "approval_pending": "Die Anmeldung wurde in der Trade Republic App noch nicht bestätigt. Bitte bestätige die Anfrage auf deinem Smartphone und klicke erneut auf Absenden oder gib den SMS-Code ein.",
+      "invalid_phone": "Bitte gib eine gültige internationale Telefonnummer ein (z.B. +491701234567)",
+      "addon_no_session": "Keine aktive Sitzung im Trade Republic Add-on gefunden. Bitte öffne die Web-Oberfläche des Add-ons und melde dich dort an.",
+      "addon_api_error": "Trade Republic hat die Anmeldeanfrage abgelehnt (MISSING_REQUIRED_HEADER oder WAF-Token-Fehler). Dies ist ein Add-on-Problem — bitte prüfe die Add-on-Logs, starte das Add-on neu oder warte auf ein Update.",
+      "addon_api_outdated": "Trade Republic hat die v1-Login-API deaktiviert (Rückgabe 426 CLIENT_VERSION_OUTDATED). Das Add-on muss aktualisiert werden, um den aktuellen v2-Push-Approval-Login zu unterstützen. Bitte aktualisiere das Trade Republic Add-on.",
+      "timeout_expired": "Die Anmeldeaufforderung ist abgelaufen (2 Minuten überschritten). Klicke auf Weiter, um eine neue Anmeldeanfrage an die Trade Republic App zu senden.",
+      "approval_pending": "Anmeldung noch nicht bestätigt. Bitte öffne die Trade Republic Smartphone-App und bestätige die Anmeldeanfrage, dann erneut auf Weiter klicken.",
       "unknown": "Ein unerwarteter Fehler ist aufgetreten"
     },
 

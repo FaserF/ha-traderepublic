@@ -193,7 +193,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         finally:
             await addon_client.close()
 
-        errors["base"] = "cannot_connect"
+        errors["base"] = "cannot_connect_addon"
 
         return self.async_show_form(
             step_id="addon",
@@ -255,12 +255,46 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             data = await resp.json()
                             if data.get("success"):
                                 return await self.async_step_addon_2fa()
-                            errors["base"] = "invalid_auth"
+                            err_raw = str(data.get("error", "")).lower()
+                            if (
+                                "missing_required_header" in err_raw
+                                or "header" in err_raw
+                            ):
+                                # Add-on is missing the X-aws-waf-token in its TR API call.
+                                # This is an add-on-side bug — the integration cannot fix it.
+                                errors["base"] = "addon_api_error"
+                            elif (
+                                "invalid" in err_raw
+                                or "pin" in err_raw
+                                or "number" in err_raw
+                            ):
+                                errors["base"] = "invalid_auth"
+                            else:
+                                errors["base"] = "invalid_auth"
+                        elif resp.status == 426:
+                            # TR returned 426 CLIENT_VERSION_OUTDATED for the v1 login endpoint.
+                            # The add-on needs to be updated to use the v2 push-approval flow.
+                            errors["base"] = "addon_api_outdated"
+                        elif resp.status == 405:
+                            # AWS WAF rejected the request (missing/invalid WAF token).
+                            errors["base"] = "addon_api_error"
                         else:
-                            errors["base"] = "cannot_connect"
+                            _LOGGER.error(
+                                "Trade Republic App returned unexpected status %s for login/init",
+                                resp.status,
+                            )
+                            errors["base"] = "addon_api_error"
+                except aiohttp.ClientConnectorError as exc:
+                    _LOGGER.error(
+                        "Cannot reach Trade Republic App at %s:%s: %s",
+                        self._addon_host,
+                        self._addon_port,
+                        exc,
+                    )
+                    errors["base"] = "cannot_connect_addon"
                 except Exception as exc:  # noqa: BLE001
                     _LOGGER.error("Failed to init login on Trade Republic App: %s", exc)
-                    errors["base"] = "cannot_connect"
+                    errors["base"] = "cannot_connect_addon"
 
         return self.async_show_form(
             step_id="addon_login",
@@ -278,12 +312,20 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_addon_2fa(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Verify 2FA or check In-App approval directly from HA integration."""
+        """Wait for in-app approval on the Trade Republic smartphone app.
+
+        Trade Republic deprecated the v1 4-digit-code flow (now returns 426
+        CLIENT_VERSION_OUTDATED). The current flow is v2 push-approval only:
+        the user must approve the login prompt in the TR mobile app. There is
+        no code to enter.
+        """
         errors: dict[str, str] = {}
         if user_input is not None:
             import aiohttp
 
             if self._addon_2fa_timed_out:
+                # Session expired — re-initiate login automatically and show the
+                # 2FA waiting screen again so the user can approve the new prompt.
                 self._addon_2fa_timed_out = False
                 if self._phone_number and self._pin:
                     url_init = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
@@ -304,33 +346,37 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 if data.get("success"):
                                     return self.async_show_form(
                                         step_id="addon_2fa",
-                                        data_schema=vol.Schema(
-                                            {
-                                                vol.Optional("code", default=""): str,
-                                            }
-                                        ),
+                                        data_schema=vol.Schema({}),
                                         errors={},
                                     )
+                                _LOGGER.warning(
+                                    "Re-initiate login after timeout returned error: %s",
+                                    data.get("error"),
+                                )
+                            elif resp.status == 426:
+                                errors["base"] = "addon_api_outdated"
+                                return self.async_show_form(
+                                    step_id="addon_2fa",
+                                    data_schema=vol.Schema({}),
+                                    errors=errors,
+                                )
                     except Exception as exc:  # noqa: BLE001
-                        _LOGGER.error(
-                            "Failed to restart login after timeout on Trade Republic App: %s",
-                            exc,
-                        )
+                        _LOGGER.error("Failed to restart login after timeout: %s", exc)
                 return await self.async_step_addon_login()
-
-            code = user_input.get("code", "").strip()
 
             url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
             session_url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
             try:
-                async with aiohttp.ClientSession() as session:
+                async with aiohttp.ClientSession() as http_session:
                     token: str | None = None
-                    max_attempts = 4 if not code else 1
 
-                    for attempt in range(max_attempts):
-                        async with session.post(
+                    # Poll the add-on's verify endpoint up to 4 times.
+                    # The add-on polls TR internally and returns the token once the
+                    # user has approved the login in the TR mobile app.
+                    for attempt in range(4):
+                        async with http_session.post(
                             url,
-                            json={"code": code},
+                            json={},
                             timeout=aiohttp.ClientTimeout(total=10),
                         ) as resp:
                             if resp.status == 200:
@@ -338,7 +384,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 token = data.get("session_token")
                                 if token:
                                     break
-                                err_msg = data.get("error", "").lower()
+                                err_msg = str(data.get("error", "")).lower()
                                 if (
                                     "timeout" in err_msg
                                     or "expired" in err_msg
@@ -347,25 +393,40 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                     self._addon_2fa_timed_out = True
                                     errors["base"] = "timeout_expired"
                                     break
+                            elif resp.status == 426:
+                                errors["base"] = "addon_api_outdated"
+                                break
+                            elif resp.status == 405:
+                                errors["base"] = "addon_api_error"
+                                break
+                            elif resp.status >= 500:
+                                _LOGGER.warning(
+                                    "Trade Republic App verify returned server error %s (attempt %d/4)",
+                                    resp.status,
+                                    attempt + 1,
+                                )
 
-                        # Fallback check on active session
-                        if not token:
-                            try:
-                                async with session.get(
-                                    session_url,
-                                    timeout=aiohttp.ClientTimeout(total=3),
-                                ) as s_resp:
-                                    if s_resp.status == 200:
-                                        s_data = await s_resp.json()
-                                        if s_data.get("session_token") and s_data.get(
-                                            "is_logged_in", True
-                                        ):
-                                            token = s_data.get("session_token")
-                                            break
-                            except Exception:  # noqa: BLE001
-                                pass
+                        if token or errors:
+                            break
 
-                        if not code and attempt < max_attempts - 1:
+                        # Fallback: check if the add-on already has an active session
+                        # (in case the approval already happened before verify was called).
+                        try:
+                            async with http_session.get(
+                                session_url,
+                                timeout=aiohttp.ClientTimeout(total=3),
+                            ) as s_resp:
+                                if s_resp.status == 200:
+                                    s_data = await s_resp.json()
+                                    if s_data.get("session_token") and s_data.get(
+                                        "is_logged_in", True
+                                    ):
+                                        token = s_data.get("session_token")
+                                        break
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                        if attempt < 3:
                             await asyncio.sleep(1.5)
 
                     if token:
@@ -403,18 +464,22 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         )
 
                     if not errors:
-                        errors["base"] = "invalid_code" if code else "approval_pending"
+                        errors["base"] = "approval_pending"
+            except aiohttp.ClientConnectorError as exc:
+                _LOGGER.error(
+                    "Cannot reach Trade Republic App at %s:%s during 2FA: %s",
+                    self._addon_host,
+                    self._addon_port,
+                    exc,
+                )
+                errors["base"] = "cannot_connect_addon"
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.error("Failed to verify 2FA on Trade Republic App: %s", exc)
-                errors["base"] = "cannot_connect"
+                errors["base"] = "cannot_connect_addon"
 
         return self.async_show_form(
             step_id="addon_2fa",
-            data_schema=vol.Schema(
-                {
-                    vol.Optional("code", default=""): str,
-                }
-            ),
+            data_schema=vol.Schema({}),
             errors=errors,
         )
 
