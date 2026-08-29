@@ -246,4 +246,3 @@ async def test_config_flow_mfa_invalid_code(hass: HomeAssistant) -> None:
     assert res["type"] == "form"
     assert res["step_id"] == "mfa"
     assert res["errors"]["base"] == "invalid_code"
-
