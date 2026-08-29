@@ -65,7 +65,7 @@
     },
     "error": {
       "cannot_connect": "Failed to connect to Trade Republic servers.",
-      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (default: a0d7b954-traderepublic:8095).",
+      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (default: 605cee21_traderepublic:8095).",
       "invalid_auth": "Invalid credentials. Please check your phone number and PIN.",
       "invalid_code": "Invalid verification code",
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",

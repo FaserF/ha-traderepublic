@@ -64,7 +64,7 @@
     },
     "error": {
       "cannot_connect": "Verbindung zu den Trade Republic Servern fehlgeschlagen.",
-      "cannot_connect_addon": "Verbindung zum Trade Republic Add-on fehlgeschlagen. Bitte stelle sicher, dass das Add-on gestartet und unter Host/Port erreichbar ist (Standard: a0d7b954-traderepublic:8095).",
+      "cannot_connect_addon": "Konnte keine Verbindung zum Trade Republic Add-on herstellen. Bitte stelle sicher, dass das Add-on gestartet ist und Host/Port erreichbar sind (Standard: 605cee21_traderepublic:8095).",
       "invalid_auth": "Ungültige Anmeldedaten. Bitte überprüfe Telefonnummer und PIN.",
       "invalid_code": "Ungültiger Verifizierungscode",
       "invalid_pin": "Die PIN muss zwischen 4 und 6 Ziffern lang sein (nur Zahlen)",

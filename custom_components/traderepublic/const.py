@@ -27,10 +27,10 @@ DEFAULT_ADDON_HOST = "127.0.0.1"
 DEFAULT_ADDON_PORT = 8095
 
 ADDON_CONTAINER_HOSTS = [
-    "a0d7b954-traderepublic-edge",
-    "a0d7b954-traderepublic",
-    "traderepublic-edge",
-    "traderepublic",
+    "605cee21_traderepublic",
+    "605cee21-traderepublic",
+    "edfe50eb_traderepublic",
+    "edfe50eb-traderepublic",
     "localhost",
     "127.0.0.1",
 ]

@@ -364,67 +364,83 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         _LOGGER.error("Failed to restart login after timeout: %s", exc)
                 return await self.async_step_addon_login()
 
-            url = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/verify"
-            session_url = f"http://{self._addon_host}:{self._addon_port}/api/v1/session"
+            addon_client = AddonClient(
+                default_host=self._addon_host, default_port=self._addon_port
+            )
+            candidate_hosts = addon_client.get_candidate_hosts(self._addon_host)
             try:
                 async with aiohttp.ClientSession() as http_session:
                     token: str | None = None
 
-                    # Poll the add-on's verify endpoint up to 4 times.
+                    # Poll the add-on's verify endpoint across candidate hosts.
                     # The add-on polls TR internally and returns the token once the
                     # user has approved the login in the TR mobile app.
                     for attempt in range(4):
-                        async with http_session.post(
-                            url,
-                            json={},
-                            timeout=aiohttp.ClientTimeout(total=10),
-                        ) as resp:
-                            if resp.status == 200:
-                                data = await resp.json()
-                                token = data.get("session_token")
-                                if token:
-                                    break
-                                err_msg = str(data.get("error", "")).lower()
-                                if (
-                                    "timeout" in err_msg
-                                    or "expired" in err_msg
-                                    or "2 minutes" in err_msg
-                                ):
-                                    self._addon_2fa_timed_out = True
-                                    errors["base"] = "timeout_expired"
-                                    break
-                            elif resp.status == 426:
-                                errors["base"] = "addon_api_outdated"
+                        for host in candidate_hosts:
+                            url = (
+                                f"http://{host}:{self._addon_port}/api/v1/login/verify"
+                            )
+                            session_url = (
+                                f"http://{host}:{self._addon_port}/api/v1/session"
+                            )
+                            try:
+                                async with http_session.post(
+                                    url,
+                                    json={"code": ""},
+                                    timeout=aiohttp.ClientTimeout(total=5),
+                                ) as resp:
+                                    if resp.status == 200:
+                                        data = await resp.json()
+                                        token = data.get("session_token")
+                                        if token:
+                                            self._addon_host = host
+                                            break
+                                        err_msg = str(data.get("error", "")).lower()
+                                        if (
+                                            "timeout" in err_msg
+                                            or "expired" in err_msg
+                                            or "2 minutes" in err_msg
+                                        ):
+                                            self._addon_2fa_timed_out = True
+                                            errors["base"] = "timeout_expired"
+                                            break
+                                        if (
+                                            "missing_required_header" in err_msg
+                                            or "header" in err_msg
+                                        ):
+                                            errors["base"] = "addon_api_error"
+                                            break
+                                    elif resp.status == 426:
+                                        errors["base"] = "addon_api_outdated"
+                                        break
+                                    elif resp.status in (405, 422):
+                                        errors["base"] = "addon_api_error"
+                                        break
+                            except Exception, asyncio.CancelledError:  # noqa: BLE001
+                                pass
+
+                            if token or errors:
                                 break
-                            elif resp.status == 405:
-                                errors["base"] = "addon_api_error"
-                                break
-                            elif resp.status >= 500:
-                                _LOGGER.warning(
-                                    "Trade Republic App verify returned server error %s (attempt %d/4)",
-                                    resp.status,
-                                    attempt + 1,
-                                )
+
+                            # Fallback: check if the add-on already has an active session
+                            try:
+                                async with http_session.get(
+                                    session_url,
+                                    timeout=aiohttp.ClientTimeout(total=2),
+                                ) as s_resp:
+                                    if s_resp.status == 200:
+                                        s_data = await s_resp.json()
+                                        if s_data.get("session_token") and s_data.get(
+                                            "is_logged_in", True
+                                        ):
+                                            token = s_data.get("session_token")
+                                            self._addon_host = host
+                                            break
+                            except Exception, asyncio.CancelledError:  # noqa: BLE001
+                                pass
 
                         if token or errors:
                             break
-
-                        # Fallback: check if the add-on already has an active session
-                        # (in case the approval already happened before verify was called).
-                        try:
-                            async with http_session.get(
-                                session_url,
-                                timeout=aiohttp.ClientTimeout(total=3),
-                            ) as s_resp:
-                                if s_resp.status == 200:
-                                    s_data = await s_resp.json()
-                                    if s_data.get("session_token") and s_data.get(
-                                        "is_logged_in", True
-                                    ):
-                                        token = s_data.get("session_token")
-                                        break
-                        except Exception:  # noqa: BLE001
-                            pass
 
                         if attempt < 3:
                             await asyncio.sleep(1.5)
@@ -435,6 +451,17 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             self.context.get("entry_id", "")
                         )
                         if entry:
+                            try:
+                                from homeassistant.helpers import issue_registry as ir
+
+                                ir.async_delete_issue(
+                                    self.hass,
+                                    DOMAIN,
+                                    f"reauth_required_{entry.entry_id}",
+                                )
+                            except Exception:  # noqa: BLE001
+                                pass
+
                             self.hass.config_entries.async_update_entry(
                                 entry,
                                 data={
@@ -721,6 +748,17 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             # In Add-on mode, the Add-on is the single source of truth and manages
                             # the WebSocket. We trust the Addon's validated session rather than
                             # opening a competing connection from HA that TR could reject/drop.
+                            try:
+                                from homeassistant.helpers import issue_registry as ir
+
+                                ir.async_delete_issue(
+                                    self.hass,
+                                    DOMAIN,
+                                    f"reauth_required_{entry.entry_id}",
+                                )
+                            except Exception:  # noqa: BLE001
+                                pass
+
                             self.hass.config_entries.async_update_entry(
                                 entry,
                                 data={
