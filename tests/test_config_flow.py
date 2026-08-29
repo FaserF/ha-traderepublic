@@ -219,13 +219,31 @@ async def test_config_flow_addon_2fa_approval_pending(hass: HomeAssistant) -> No
         patch("aiohttp.ClientSession", return_value=MockSessionPending()),
         patch("asyncio.sleep", return_value=None),
     ):
-        res = await flow.async_step_addon_2fa(user_input={"code": ""})
+        res = await flow.async_step_addon_2fa(user_input={})
         assert res["type"] == "form"
         assert res["step_id"] == "addon_2fa"
         assert res["errors"]["base"] == "approval_pending"
 
-        # If user explicitly entered code, error is invalid_code
-        res_code = await flow.async_step_addon_2fa(user_input={"code": "1234"})
-        assert res_code["type"] == "form"
-        assert res_code["step_id"] == "addon_2fa"
-        assert res_code["errors"]["base"] == "invalid_code"
+
+@pytest.mark.asyncio
+async def test_config_flow_mfa_invalid_code(hass: HomeAssistant) -> None:
+    """Test manual MFA step with invalid code."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.api import InvalidAuthError
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow._phone_number = "+491701234567"
+    flow._pin = "1234"
+
+    mock_client = AsyncMock()
+    mock_client.login_step2.side_effect = InvalidAuthError("Invalid code")
+    flow._client = mock_client
+
+    res = await flow.async_step_mfa(user_input={"code": "9999"})
+    assert res["type"] == "form"
+    assert res["step_id"] == "mfa"
+    assert res["errors"]["base"] == "invalid_code"
+
