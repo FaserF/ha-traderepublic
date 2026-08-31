@@ -20,7 +20,7 @@
 
       "addon": {
         "title": "Trade Republic App",
-        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically. Please ensure the Trade Republic App add-on is installed, running and accessible (default container host: a0d7b954-traderepublic / 127.0.0.1, port 8095).",
+        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically. Please ensure the Trade Republic App add-on is installed, running and accessible (default container host: 605cee21_traderepublic / 127.0.0.1, port 8095).",
         "data": {
           "addon_host": "App Host / IP",
           "addon_port": "App Port"

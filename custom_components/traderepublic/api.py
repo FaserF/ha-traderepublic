@@ -698,16 +698,29 @@ class AddonClient:
 
         for p in ports_to_try:
             for host in hosts:
-                url = f"http://{host}:{p}/api/v1/session"
+                url_session = f"http://{host}:{p}/api/v1/session"
+                url_status = f"http://{host}:{p}/api/v1/status"
                 try:
                     async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=3)
+                        url_session, timeout=aiohttp.ClientTimeout(total=3)
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
                             return host, data
+                        if resp.status == 404:
+                            # Addon is reachable but no active session token yet
+                            async with session.get(
+                                url_status, timeout=aiohttp.ClientTimeout(total=3)
+                            ) as status_resp:
+                                if status_resp.status == 200:
+                                    status_data = await status_resp.json()
+                                    return host, {
+                                        "session_token": None,
+                                        "phone_number": status_data.get("phone_number"),
+                                        "is_logged_in": False,
+                                    }
                 except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
-                    _LOGGER.debug("Could not reach addon at %s: %s", url, exc)
+                    _LOGGER.debug("Could not reach addon at %s: %s", url_session, exc)
                     continue
 
         return None, None
