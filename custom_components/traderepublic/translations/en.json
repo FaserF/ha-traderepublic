@@ -41,7 +41,10 @@
       },
       "addon_2fa": {
         "title": "Confirm Login in Trade Republic App",
-        "description": "A login request has been sent to your Trade Republic smartphone app. Please open the app and approve the login prompt. Once approved, click Submit.\n\n⚠️ The 4-digit push code is no longer supported by Trade Republic (deprecated in their API). Only in-app approval works."
+        "description": "A login request has been sent to your Trade Republic smartphone app. Please open the app and approve the login prompt, or enter the 4-digit push code if you received one.",
+        "data": {
+          "code": "4-Digit Push Code (Optional)"
+        }
       },
 
       "mfa": {

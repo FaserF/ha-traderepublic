@@ -323,6 +323,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             import aiohttp
 
+            input_code = str(user_input.get("code") or "").strip()
+
             if self._addon_2fa_timed_out:
                 # Session expired — re-initiate login automatically and show the
                 # 2FA waiting screen again so the user can approve the new prompt.
@@ -346,7 +348,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 if data.get("success"):
                                     return self.async_show_form(
                                         step_id="addon_2fa",
-                                        data_schema=vol.Schema({}),
+                                        data_schema=vol.Schema(
+                                            {vol.Optional("code"): str}
+                                        ),
                                         errors={},
                                     )
                                 _LOGGER.warning(
@@ -357,7 +361,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 errors["base"] = "addon_api_outdated"
                                 return self.async_show_form(
                                     step_id="addon_2fa",
-                                    data_schema=vol.Schema({}),
+                                    data_schema=vol.Schema({vol.Optional("code"): str}),
                                     errors=errors,
                                 )
                     except Exception as exc:  # noqa: BLE001
@@ -374,7 +378,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                     # Poll the add-on's verify endpoint across candidate hosts.
                     # The add-on polls TR internally and returns the token once the
-                    # user has approved the login in the TR mobile app.
+                    # user has approved the login in the TR mobile app or entered the 4-digit code.
                     for attempt in range(4):
                         for host in candidate_hosts:
                             url = (
@@ -386,7 +390,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             try:
                                 async with http_session.post(
                                     url,
-                                    json={"code": ""},
+                                    json={"code": input_code},
                                     timeout=aiohttp.ClientTimeout(total=5),
                                 ) as resp:
                                     if resp.status == 200:
@@ -506,7 +510,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="addon_2fa",
-            data_schema=vol.Schema({}),
+            data_schema=vol.Schema({vol.Optional("code"): str}),
             errors=errors,
         )
 

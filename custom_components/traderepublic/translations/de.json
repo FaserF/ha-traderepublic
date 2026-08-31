@@ -41,7 +41,10 @@
       },
       "addon_2fa": {
         "title": "Anmeldung in Trade Republic App bestätigen",
-        "description": "Eine Anmeldeanfrage wurde an deine Trade Republic Smartphone-App gesendet. Bitte öffne die App und bestätige die Anmeldeanfrage. Danach hier auf Weiter klicken.\n\n⚠️ Der 4-stellige Push-Code wird von Trade Republic nicht mehr unterstützt (in der API abgekündigt). Nur die In-App-Bestätigung funktioniert noch."
+        "description": "Eine Anmeldeanfrage wurde an deine Trade Republic Smartphone-App gesendet. Bitte öffne die App und bestätige die Anfrage, oder gib den 4-stelligen Push-Code ein, falls du eine Benachrichtigung erhalten hast.",
+        "data": {
+          "code": "4-stelliger Push-Code (Optional)"
+        }
       },
 
       "mfa": {
