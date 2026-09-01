@@ -786,3 +786,33 @@ class AddonClient:
                 continue
 
         return None, None
+
+    async def fetch_qr_code(
+        self, preferred_host: str | None = None, port: int | None = None
+    ) -> tuple[str | None, str | None, bool]:
+        """Fetch QR code for login from Trade Republic Add-on.
+
+        Returns: (candidate_host, qr_code_data_uri, is_logged_in)
+        """
+        import aiohttp
+
+        session = await self._get_session()
+        target_port = port or self.default_port
+        hosts = self.get_candidate_hosts(preferred_host or self.default_host)
+
+        for host in hosts:
+            url = f"http://{host}:{target_port}/api/v1/login/qr"
+            try:
+                async with session.get(
+                    url, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        qr_data = data.get("qr_code")
+                        is_logged_in = bool(data.get("is_logged_in"))
+                        return host, qr_data, is_logged_in
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
+                _LOGGER.debug("Could not fetch QR code from addon at %s: %s", url, exc)
+                continue
+
+        return None, None, False

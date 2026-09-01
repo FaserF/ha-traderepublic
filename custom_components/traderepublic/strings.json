@@ -31,6 +31,13 @@
         "description": "An active Trade Republic Home Assistant App was found ({host}). Would you like to connect to it to automatically manage your session?"
       },
 
+      "addon_scan": {
+        "title": "Log in with QR Code (Trade Republic)",
+        "description": "Please scan the QR code below using your Trade Republic mobile app (Profile → Settings → Web Login / Scan QR).\n\n![QR Code]({qr_image})\n\n**Please click Submit after confirming in the app.**",
+        "data": {
+          "use_phone_login": "Log in with Phone Number & PIN instead"
+        }
+      },
       "addon_login": {
         "title": "Login via Trade Republic App",
         "description": "Enter your credentials. The Trade Republic App handles authentication and keeps the session active.",
@@ -41,43 +48,43 @@
       },
       "addon_2fa": {
         "title": "Confirm Login in Trade Republic App",
-        "description": "A login request has been sent to your Trade Republic smartphone app. Please open the app and approve the login prompt, or enter the 4-digit push code if you received one.",
+        "description": "A login prompt was sent to your Trade Republic mobile app. Please open the app and approve the request, or enter the 4-digit push code if you received a notification.",
         "data": {
-          "code": "4-Digit Push Code (Optional)"
+          "code": "4-digit Push Code (Optional)"
         }
       },
 
       "mfa": {
         "title": "Two-Factor Authentication",
-        "description": "Please enter the verification code sent to your phone or app.",
+        "description": "Please enter the verification code sent to your smartphone.",
         "data": {
-          "code": "Verification Code"
+          "code": "Verification code"
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate Trade Republic",
-        "description": "Your session has expired. If using the App, simply sync or log in again via Home Assistant. If using Manual Mode, enter a fresh session token or PIN.",
+        "title": "Re-authenticate Trade Republic",
+        "description": "Your session has expired. If using the App, you can sync directly or start a new login. In manual mode, enter a new token or your PIN.",
         "data": {
           "reauth_action": "Action",
-          "pin": "PIN (Manual Mode only, 4-6 digits)",
-          "session_token": "Session Token (Manual Mode only)"
+          "pin": "PIN (Manual mode only, 4-6 digits)",
+          "session_token": "Session Token (Manual mode only)"
         }
       }
-
 
     },
     "error": {
       "cannot_connect": "Failed to connect to Trade Republic servers.",
-      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (default: 605cee21_traderepublic:8095).",
+      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (Default: 605cee21_traderepublic:8095).",
       "invalid_auth": "Invalid credentials. Please check your phone number and PIN.",
       "invalid_code": "Invalid verification code",
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
-      "invalid_phone": "Please provide a valid international phone number (e.g. +491701234567)",
-      "addon_no_session": "No active session found in the Trade Republic Add-on. Please open the Add-on Web UI and log in first.",
-      "addon_api_error": "Trade Republic rejected the login request (MISSING_REQUIRED_HEADER or WAF token error). This is an Add-on issue — please check Add-on logs, restart the Add-on, or wait for an Add-on update.",
-      "addon_api_outdated": "Trade Republic has disabled the v1 login API (returned 426 CLIENT_VERSION_OUTDATED). The Add-on must be updated to support the current v2 push-approval login. Please update the Trade Republic Add-on.",
-      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to send a new login request to your Trade Republic app.",
-      "approval_pending": "Login not yet confirmed. Please open your Trade Republic smartphone app and approve the login prompt, then click Submit again.",
+      "invalid_phone": "Please enter a valid international phone number (e.g. +491701234567)",
+      "addon_no_session": "No active session found in Trade Republic Add-on. Please open the Add-on web interface and log in.",
+      "addon_api_error": "Trade Republic rejected the login request (MISSING_REQUIRED_HEADER or WAF token error). This is an Add-on issue — please check Add-on logs, restart it, or wait for an update.",
+      "addon_api_outdated": "Trade Republic deprecated the v1 login API (returned 426 CLIENT_VERSION_OUTDATED). The Add-on needs to be updated to support the v2 push-approval flow. Please update the Trade Republic Add-on.",
+      "timeout_expired": "The login prompt timed out (2 minutes exceeded). Click Next to send a new login request to the Trade Republic App.",
+      "approval_pending": "Login not yet confirmed. Please open your Trade Republic smartphone app and approve the login prompt, then click Next again.",
+      "qr_not_confirmed": "The QR code has not yet been approved in the Trade Republic app or has expired. Please re-scan the QR code and click Submit.",
       "unknown": "An unexpected error occurred"
     },
 

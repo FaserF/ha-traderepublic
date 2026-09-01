@@ -31,6 +31,13 @@
         "description": "An active Trade Republic Home Assistant App was found ({host}). Would you like to connect to it to automatically manage your session?"
       },
 
+      "addon_scan": {
+        "title": "Log in with QR Code (Trade Republic)",
+        "description": "Please scan the QR code below using your Trade Republic mobile app (Profile → Settings → Web Login / Scan QR).\n\n![QR Code]({qr_image})\n\n**Please click Submit after confirming in the app.**",
+        "data": {
+          "use_phone_login": "Log in with Phone Number & PIN instead"
+        }
+      },
       "addon_login": {
         "title": "Login via Trade Republic App",
         "description": "Enter your credentials. The Trade Republic App handles authentication and keeps the session active.",
@@ -78,6 +85,7 @@
       "addon_api_outdated": "Trade Republic has disabled the v1 login API (returned 426 CLIENT_VERSION_OUTDATED). The Add-on must be updated to support the current v2 push-approval login. Please update the Trade Republic Add-on.",
       "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to send a new login request to your Trade Republic app.",
       "approval_pending": "Login not yet confirmed. Please open your Trade Republic smartphone app and approve the login prompt, then click Submit again.",
+      "qr_not_confirmed": "The QR code has not yet been approved in the Trade Republic app or has expired. Please re-scan the QR code and click Submit.",
       "unknown": "An unexpected error occurred"
     },
 
