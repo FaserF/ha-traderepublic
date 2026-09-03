@@ -307,9 +307,12 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 break
             await asyncio.sleep(1)
 
-        transparent_placeholder = (
-            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAAL"
-            "AAAAAABAAEAAAIBRAA7"
+        loading_placeholder = (
+            "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'>"
+            "<rect width='220' height='220' fill='%231e293b' rx='12'/>"
+            "<text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-family='sans-serif' font-size='14'>QR-Code wird geladen...</text>"
+            "<text x='50%25' y='60%25' dominant-baseline='middle' text-anchor='middle' fill='%2364748b' font-family='sans-serif' font-size='12'>Bitte kurz warten oder Absenden klicken</text>"
+            "</svg>"
         )
 
         return self.async_show_form(
@@ -320,7 +323,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             description_placeholders={
-                "qr_image": qr_image or transparent_placeholder,
+                "qr_image": qr_image or loading_placeholder,
             },
             errors=errors,
         )
