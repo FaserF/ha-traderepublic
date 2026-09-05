@@ -799,20 +799,26 @@ class AddonClient:
         session = await self._get_session()
         target_port = port or self.default_port
         hosts = self.get_candidate_hosts(preferred_host or self.default_host)
+        ports_to_try = [target_port]
+        if self.default_port not in ports_to_try:
+            ports_to_try.append(self.default_port)
 
-        for host in hosts:
-            url = f"http://{host}:{target_port}/api/v1/login/qr"
-            try:
-                async with session.get(
-                    url, timeout=aiohttp.ClientTimeout(total=8)
-                ) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        qr_data = data.get("qr_code")
-                        is_logged_in = bool(data.get("is_logged_in"))
-                        return host, qr_data, is_logged_in
-            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
-                _LOGGER.debug("Could not fetch QR code from addon at %s: %s", url, exc)
-                continue
+        for p in ports_to_try:
+            for host in hosts:
+                url = f"http://{host}:{p}/api/v1/login/qr"
+                try:
+                    async with session.get(
+                        url, timeout=aiohttp.ClientTimeout(total=8)
+                    ) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            qr_data = data.get("qr_code")
+                            is_logged_in = bool(data.get("is_logged_in"))
+                            return host, qr_data, is_logged_in
+                except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
+                    _LOGGER.debug(
+                        "Could not fetch QR code from addon at %s: %s", url, exc
+                    )
+                    continue
 
         return None, None, False
