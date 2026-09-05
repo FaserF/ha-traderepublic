@@ -307,9 +307,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 break
             await asyncio.sleep(1)
 
-        loading_placeholder = (
-            "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMjAnIGhlaWdodD0nMjIwJyB2aWV3Qm94PScwIDAgMjIwIDIyMCc+PHJlY3Qgd2lkdGg9JzIyMCcgaGVpZ2h0PScyMjAnIGZpbGw9JyMxZTI5M2InIHJ4PScxMicvPjx0ZXh0IHg9JzUwJScgeT0nNDUlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmaWxsPScjOTRhM2I4JyBmYW1pbHktZmFtaWx5PSdzYW5zLXNlcmlmJyBmb250LXNpemU9JzE0Jz5RUi1Db2RlIHdpcmQgZ2VsYWRlbi4uLjwvdGV4dD48dGV4dCB4PSc1MCUnIHk9JzYwJScgZG9taW5hbnQtYmFzZWxpbmU9J21pZGRsZScgdGV4dC1hbmNob3I9J21pZGRsZScgZmlsbD0nIzY0NzQ4YicgZmFtaWx5LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC1zaXplPScxMic+Qml0dGUga3VyeiB3YXJ0ZW4gb2RlciBBYnNlbmRlbiBrbGlja2VuPC90ZXh0Pjwvc3ZnPg=="
-        )
+        loading_placeholder = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMjAnIGhlaWdodD0nMjIwJyB2aWV3Qm94PScwIDAgMjIwIDIyMCc+PHJlY3Qgd2lkdGg9JzIyMCcgaGVpZ2h0PScyMjAnIGZpbGw9JyMxZTI5M2InIHJ4PScxMicvPjx0ZXh0IHg9JzUwJScgeT0nNDUlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmaWxsPScjOTRhM2I4JyBmYW1pbHktZmFtaWx5PSdzYW5zLXNlcmlmJyBmb250LXNpemU9JzE0Jz5RUi1Db2RlIHdpcmQgZ2VsYWRlbi4uLjwvdGV4dD48dGV4dCB4PSc1MCUnIHk9JzYwJScgZG9taW5hbnQtYmFzZWxpbmU9J21pZGRsZScgdGV4dC1hbmNob3I9J21pZGRsZScgZmlsbD0nIzY0NzQ4YicgZmFtaWx5LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC1zaXplPScxMic+Qml0dGUga3VyeiB3YXJ0ZW4gb2RlciBBYnNlbmRlbiBrbGlja2VuPC90ZXh0Pjwvc3ZnPg=="
 
         return self.async_show_form(
             step_id="addon_scan",
