@@ -788,7 +788,10 @@ class AddonClient:
         return None, None
 
     async def fetch_qr_code(
-        self, preferred_host: str | None = None, port: int | None = None
+        self,
+        preferred_host: str | None = None,
+        port: int | None = None,
+        refresh: bool = True,
     ) -> tuple[str | None, str | None, bool]:
         """Fetch QR code for login from Trade Republic Add-on.
 
@@ -803,9 +806,10 @@ class AddonClient:
         if self.default_port not in ports_to_try:
             ports_to_try.append(self.default_port)
 
+        ref_param = "?refresh=true" if refresh else ""
         for p in ports_to_try:
             for host in hosts:
-                url = f"http://{host}:{p}/api/v1/login/qr"
+                url = f"http://{host}:{p}/api/v1/login/qr{ref_param}"
                 try:
                     async with session.get(
                         url, timeout=aiohttp.ClientTimeout(total=8)
