@@ -391,6 +391,25 @@ class TradeRepublicAPIClient:
                                             results["api_interest_rate"] = float(
                                                 api_rate
                                             )
+
+                                    ex_total = (
+                                        target_obj.get("availableTaxExemption")
+                                        or target_obj.get("taxExemptionTotal")
+                                        or target_obj.get("taxExemption")
+                                        or target_obj.get("exemptionTotal")
+                                    )
+                                    if ex_total is not None:
+                                        with contextlib.suppress(ValueError, TypeError):
+                                            results["exemption_total"] = float(ex_total)
+
+                                    ex_used = (
+                                        target_obj.get("usedTaxExemption")
+                                        or target_obj.get("taxExemptionUsed")
+                                        or target_obj.get("exemptionUsed")
+                                    )
+                                    if ex_used is not None:
+                                        with contextlib.suppress(ValueError, TypeError):
+                                            results["exemption_used"] = float(ex_used)
                                 has_cash = True
                             elif sub_id == sub_savings_id:
                                 results["savings_plans_count"] = len(
@@ -578,8 +597,8 @@ class TradeRepublicAPIClient:
                 if invested_capital > 0
                 else 0.0
             )
-            results["exemption_total"] = 1000.00
-            results["exemption_used"] = 0.00
+            results.setdefault("exemption_total", 1000.00)
+            results.setdefault("exemption_used", 0.00)
             results["holdings"] = holdings
 
             # Interest/Tagesgeld Calculations (Priority: User override -> API rate -> 2.25 default)
