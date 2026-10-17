@@ -810,7 +810,7 @@ class AddonClient:
         self,
         preferred_host: str | None = None,
         port: int | None = None,
-        refresh: bool = True,
+        refresh: bool = False,
     ) -> tuple[str | None, str | None, bool]:
         """Fetch QR code for login from Trade Republic Add-on.
 
@@ -831,7 +831,7 @@ class AddonClient:
                 url = f"http://{host}:{p}/api/v1/login/qr{ref_param}"
                 try:
                     async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=8)
+                        url, timeout=aiohttp.ClientTimeout(total=15)
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()

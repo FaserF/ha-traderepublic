@@ -269,11 +269,13 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             errors["base"] = "qr_not_confirmed"
 
-        # Fetch latest QR code from Add-on
+        # Fetch latest QR code from Add-on (avoid forcing page reload unless retry > 0)
         qr_image = None
-        for _ in range(5):
+        for attempt in range(3):
             candidate, qr_data, is_logged_in = await addon_client.fetch_qr_code(
-                preferred_host=self._addon_host, port=self._addon_port
+                preferred_host=self._addon_host,
+                port=self._addon_port,
+                refresh=(attempt == 1),
             )
             if candidate:
                 self._addon_host = candidate
@@ -364,7 +366,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         session.post(
                             url,
                             json={"phone_number": self._phone_number, "pin": self._pin},
-                            timeout=aiohttp.ClientTimeout(total=20),
+                            timeout=aiohttp.ClientTimeout(total=25),
                         ) as resp,
                     ):
                         if resp.status == 200:
