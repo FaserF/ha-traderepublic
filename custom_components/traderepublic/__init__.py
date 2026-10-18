@@ -136,7 +136,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for v in hass.data[DOMAIN].values()
             if isinstance(v, TradeRepublicDataUpdateCoordinator)
         ]
-        if not remaining and hass.services.has_service(DOMAIN, SERVICE_GET_TRANSACTIONS):
+        if not remaining and hass.services.has_service(
+            DOMAIN, SERVICE_GET_TRANSACTIONS
+        ):
             hass.services.async_remove(DOMAIN, SERVICE_GET_TRANSACTIONS)
 
     return unload_ok
