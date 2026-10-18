@@ -4,17 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
-import voluptuous as vol
 
 from .api import AddonClient
 from .const import (
     CONF_ADDON_HOST,
     CONF_ADDON_PORT,
-    CONF_AUTH_MODE,
     DEFAULT_ADDON_HOST,
     DEFAULT_ADDON_PORT,
     DOMAIN,
@@ -48,7 +47,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Register get_transactions service once per domain
-    if not hass.services.has(DOMAIN, SERVICE_GET_TRANSACTIONS):
+    if not hass.services.has_service(DOMAIN, SERVICE_GET_TRANSACTIONS):
 
         async def async_handle_get_transactions(call: ServiceCall) -> dict[str, Any]:
             """Handle get_transactions service call."""
@@ -64,10 +63,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     break
 
             if not active_coord:
-                return {"error": "No active Trade Republic coordinator found", "transactions": []}
+                return {
+                    "error": "No active Trade Republic coordinator found",
+                    "transactions": [],
+                }
 
-            addon_host = active_coord.config_entry.data.get(CONF_ADDON_HOST, DEFAULT_ADDON_HOST)
-            addon_port = active_coord.config_entry.data.get(CONF_ADDON_PORT, DEFAULT_ADDON_PORT)
+            addon_host = active_coord.config_entry.data.get(
+                CONF_ADDON_HOST, DEFAULT_ADDON_HOST
+            )
+            addon_port = active_coord.config_entry.data.get(
+                CONF_ADDON_PORT, DEFAULT_ADDON_PORT
+            )
             client = AddonClient(default_host=addon_host, default_port=addon_port)
             try:
                 cand, result = await client.fetch_timeline(
@@ -87,7 +93,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if search:
                 s_lower = search.strip().lower()
                 fallback_txs = [
-                    tx for tx in fallback_txs
+                    tx
+                    for tx in fallback_txs
                     if s_lower in str(tx.get("title", "")).lower()
                     or s_lower in str(tx.get("subtitle", "")).lower()
                 ]
@@ -102,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN,
             SERVICE_GET_TRANSACTIONS,
             async_handle_get_transactions,
-            schema=SERVICE_GET_TRANSACTIONS_SCHEMA,
+            schema=SERVICE_GET_TRANSACTIONS_SCHEMA,  # type: ignore[arg-type]
             supports_response=SupportsResponse.ONLY,
         )
 
@@ -125,10 +132,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Unregister service if no coordinators remain
         remaining = [
-            v for v in hass.data[DOMAIN].values()
+            v
+            for v in hass.data[DOMAIN].values()
             if isinstance(v, TradeRepublicDataUpdateCoordinator)
         ]
-        if not remaining and hass.services.has(DOMAIN, SERVICE_GET_TRANSACTIONS):
+        if not remaining and hass.services.has_service(DOMAIN, SERVICE_GET_TRANSACTIONS):
             hass.services.async_remove(DOMAIN, SERVICE_GET_TRANSACTIONS)
 
     return unload_ok

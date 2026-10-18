@@ -221,9 +221,13 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                             and self.data
                             and self.data.get("total_profit", 0.0) != 0.0
                         ):
-                            _LOGGER.debug("Preserving non-zero total_profit from previous cycle while ticker updates")
+                            _LOGGER.debug(
+                                "Preserving non-zero total_profit from previous cycle while ticker updates"
+                            )
                             payload_data["total_profit"] = self.data["total_profit"]
-                            payload_data["total_profit_percent"] = self.data.get("total_profit_percent", 0.0)
+                            payload_data["total_profit_percent"] = self.data.get(
+                                "total_profit_percent", 0.0
+                            )
                             if self.data.get("net_value", 0.0) > 0.0:
                                 payload_data["net_value"] = self.data["net_value"]
 
