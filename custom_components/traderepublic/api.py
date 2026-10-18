@@ -775,6 +775,38 @@ class AddonClient:
 
         return None, None
 
+    async def fetch_timeline(
+        self,
+        preferred_host: str | None = None,
+        port: int | None = None,
+        limit: int = 50,
+        search: str | None = None,
+    ) -> tuple[str | None, dict[str, Any] | None]:
+        """Fetch transaction history from the Trade Republic Add-on."""
+        import aiohttp
+
+        session = await self._get_session()
+        target_port = port or self.default_port
+        hosts = self.get_candidate_hosts(preferred_host or self.default_host)
+        params: dict[str, Any] = {"limit": limit}
+        if search:
+            params["search"] = search
+
+        for host in hosts:
+            url = f"http://{host}:{target_port}/api/v1/timeline"
+            try:
+                async with session.get(
+                    url, params=params, timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return host, data
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
+                _LOGGER.debug("Could not fetch timeline from addon at %s: %s", url, exc)
+                continue
+
+        return None, None
+
     async def trigger_refresh(
         self, preferred_host: str | None = None, port: int | None = None
     ) -> tuple[str | None, str | None]:

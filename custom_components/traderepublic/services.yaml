@@ -1,0 +1,22 @@
+get_transactions:
+  name: "Get Transactions"
+  description: "Query Trade Republic transaction history from the Add-on timeline stream."
+  fields:
+    limit:
+      name: "Limit"
+      description: "Maximum number of transactions to return (default 50, max 500)."
+      required: false
+      default: 50
+      example: 25
+      selector:
+        number:
+          min: 1
+          max: 500
+          mode: box
+    search:
+      name: "Search Query"
+      description: "Optional text filter for transaction title or subtitle (e.g. company name, dividend, interest)."
+      required: false
+      example: "Apple"
+      selector:
+        text:
