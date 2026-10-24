@@ -163,3 +163,12 @@ To protect your account from WAF blocks or temporary bans, this integration impl
 2. **Domain-wide Lock:** Serialises concurrent updates from multiple instances.
 3. **Restart-Resistance:** Cached data is saved in HA storage. Upon restart, the integration serves cached data first instead of hammering the API.
 4. **Exponential Backoff:** If the API returns a rate limit (HTTP 429/403), the integration backs off up to 24 hours.
+
+---
+
+## 🔌 Recommended Hardware & Ecosystem Links
+
+| Device / Service | Integration Use Case | Link |
+| :--- | :--- | :--- |
+| **Trade Republic (Zinsen & kostenlose ETF-Sparpläne)** | Kompatibel mit Home Assistant Depot- & Cashflow-Sensoren | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/tr) |
+| **Finanzfluss Copilot Dashboard** | Automatische Konto-, Depot- & Freistellungsauftrag-Synchronisation | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/finanzfluss) |
