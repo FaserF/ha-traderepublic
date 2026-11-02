@@ -1,4 +1,4 @@
-# Trade Republic (for Home Assistant)
+﻿# Trade Republic (for Home Assistant)
 
 [![GitHub Release](https://img.shields.io/github/release/FaserF/ha-traderepublic.svg?style=flat-square)](https://github.com/FaserF/ha-traderepublic/releases)
 [![Downloads (Current release)](https://img.shields.io/github/downloads/FaserF/ha-traderepublic/latest/traderepublic.zip?label=Downloads%20(Current%20release)&style=flat-square)](https://github.com/FaserF/ha-traderepublic/releases)
@@ -171,5 +171,5 @@ To protect your account from WAF blocks or temporary bans, this integration impl
 
 | Device / Service | Integration Use Case | Link |
 | :--- | :--- | :--- |
-| **Trade Republic (Zinsen & kostenlose ETF-Sparpläne)** | Kompatibel mit Home Assistant Depot- & Cashflow-Sensoren | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/tr) |
-| **Finanzfluss Copilot Dashboard** | Automatische Konto-, Depot- & Freistellungsauftrag-Synchronisation | [Offizielle Geräte-Seite →](https://fabiseitz.de/go/finanzfluss) |
+| **Trade Republic (Interest & Fee-free ETF Savings Plans)** | Compatible with Home Assistant portfolio & cashflow sensors | [Official Device Page →](https://fabiseitz.de/go/tr) |
+| **Finanzfluss Copilot Dashboard** | Automated account, portfolio & tax-allowance synchronization | [Official Device Page →](https://fabiseitz.de/go/finanzfluss) |
