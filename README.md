@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/release/FaserF/ha-traderepublic.svg?style=flat-square)](https://github.com/FaserF/ha-traderepublic/releases)
 [![Downloads (Current release)](https://img.shields.io/github/downloads/FaserF/ha-traderepublic/latest/traderepublic.zip?label=Downloads%20(Current%20release)&style=flat-square)](https://github.com/FaserF/ha-traderepublic/releases)
 [![License](https://img.shields.io/github/license/FaserF/ha-traderepublic.svg?style=flat-square)](LICENSE)
-[![hacs](https://img.shields.io/badge/HACS-custom-orange.svg?style=flat-square)](https://hacs.xyz)
+[![Home Assistant Marketplace](https://img.shields.io/badge/Home%20Assistant-Marketplace-blue.svg?style=flat-square)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FFaserF%2Fha-traderepublic)
 [![Add to Home Assistant](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=traderepublic)
 [![CI Orchestrator](https://github.com/FaserF/ha-traderepublic/actions/workflows/ci-orchestrator.yml/badge.svg)](https://github.com/FaserF/ha-traderepublic/actions/workflows/ci-orchestrator.yml)
 
@@ -37,12 +37,13 @@ A **Home Assistant custom integration** for **Trade Republic**. It securely fetc
 
 ## 📦 Installation
 
-### Via HACS (Recommended)
+### Via Home Assistant Marketplace (Recommended)
 
-1. Open HACS → **Integrations** → ⋮ → **Custom repositories**
-2. Add `FaserF/ha-traderepublic` with category **Integration**
-3. Search for **Trade Republic** and install
-4. Restart Home Assistant
+1. Open Home Assistant → **Settings** → **Marketplace** (or **Integrations**)
+2. Click the three dots (⋮) in the top-right corner → **Custom repositories**
+3. Add `https://github.com/FaserF/ha-traderepublic` with category **Integration**
+4. Search for **Trade Republic** and click **Install**
+5. Restart Home Assistant
 
 ---
 
