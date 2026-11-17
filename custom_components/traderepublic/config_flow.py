@@ -315,7 +315,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             step_id="addon_scan",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("use_phone_login", default=False): bool,
+                    vol.Optional("use_phone_login", default=True): bool,
                 }
             ),
             description_placeholders={
