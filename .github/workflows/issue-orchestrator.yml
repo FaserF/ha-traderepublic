@@ -4,6 +4,9 @@ on:
   issues:
     types: [opened]
 
+env:
+  HAS_BOT_CREDS: ${{ secrets.BOT_APP_ID != '' && secrets.BOT_PRIVATE_KEY != '' }}
+
 permissions:
   issues: write
 
@@ -14,7 +17,7 @@ jobs:
     steps:
       - name: Generate GitHub App token for Hermes
         id: app-token
-        if: ${{ secrets.BOT_APP_ID != '' && secrets.BOT_PRIVATE_KEY != '' }}
+        if: env.HAS_BOT_CREDS == 'true'
         uses: actions/create-github-app-token@v3
         continue-on-error: true
         with:
@@ -56,7 +59,7 @@ jobs:
     steps:
       - name: Generate GitHub App token for Hermes
         id: app-token
-        if: ${{ secrets.BOT_APP_ID != '' && secrets.BOT_PRIVATE_KEY != '' }}
+        if: env.HAS_BOT_CREDS == 'true'
         uses: actions/create-github-app-token@v3
         continue-on-error: true
         with:
