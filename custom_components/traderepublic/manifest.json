@@ -16,5 +16,5 @@
   "requirements": [
     "websockets>=12.0"
   ],
-  "version": "1.2.2-dev0"
+  "version": "1.2.3-dev0"
 }
