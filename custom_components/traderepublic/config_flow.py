@@ -42,7 +42,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type: ignore[call-arg]
     """Handle a config flow for Trade Republic."""
 
     VERSION = 1

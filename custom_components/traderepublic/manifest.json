@@ -12,9 +12,9 @@
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/FaserF/ha-traderepublic/issues",
+  "quality_scale": "platinum",
   "requirements": [
     "websockets>=12.0"
   ],
-  "version": "1.2.1-dev0",
-  "quality_scale": "platinum"
+  "version": "1.2.1-dev0"
 }
