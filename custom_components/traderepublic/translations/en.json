@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Connect to Trade Republic",
-        "description": "Choose your authentication method. Using the Trade Republic Home Assistant App is recommended to automatically solve bot challenges and keep sessions alive 24/7 without manual tokens.",
+        "description": "Choose your authentication method.\n\n{addon_detection_info}",
         "data": {
           "auth_mode": "Connection Method"
         }
@@ -19,39 +19,39 @@
       },
 
       "addon": {
-        "title": "Trade Republic App",
-        "description": "Connect via Trade Republic Home Assistant App to keep sessions alive automatically. Please ensure the Trade Republic App add-on is installed, running and accessible (default container host: 605cee21_traderepublic / 127.0.0.1, port 8095).",
+        "title": "Trade Republic Home Assistant Add-on",
+        "description": "Connect via the Trade Republic Home Assistant Add-on to keep sessions alive automatically. Please ensure the Trade Republic Add-on is installed, running and accessible (default container host: edfe50eb_traderepublic / 127.0.0.1, port 8095).",
         "data": {
-          "addon_host": "App Host / IP",
-          "addon_port": "App Port"
+          "addon_host": "Add-on Host / IP",
+          "addon_port": "Add-on Port"
         }
       },
       "addon_confirm": {
-        "title": "Trade Republic App Found",
-        "description": "An active Trade Republic Home Assistant App was found ({host}). Would you like to connect to it to automatically manage your session?"
+        "title": "Trade Republic Add-on Found",
+        "description": "An active Trade Republic Home Assistant Add-on was found ({host}). Would you like to connect to it to automatically manage your session?"
       },
 
       "addon_scan": {
         "title": "Trade Republic Login",
-        "description": "Please scan the QR code below using your Trade Republic mobile app (Profile → Settings → Web Login / Scan QR).\n\n![QR Code]({qr_image})\n\n**If you leave the fields below empty and click Submit, the QR code scan will be checked.** Alternatively, enter your phone number and PIN below to log in directly via push notification.",
+        "description": "Please scan the QR code below using your Trade Republic smartphone app (Profile → Settings → Web Login / Scan QR).\n\n![QR Code]({qr_image})\n\n**If you leave the fields below empty and click Submit, the QR code scan will be checked.** Alternatively, enter your phone number and PIN below to log in directly via push notification on your smartphone.",
         "data": {
           "phone_number": "Phone Number (Optional for QR code, e.g. +491701234567)",
           "pin": "PIN (Optional for QR code, 4-6 digits)"
         }
       },
       "addon_login": {
-        "title": "Login via Trade Republic App",
-        "description": "Enter your credentials. The Trade Republic App handles authentication and keeps the session active.",
+        "title": "Login via Trade Republic Add-on",
+        "description": "Enter your credentials. The Trade Republic Home Assistant Add-on handles authentication and keeps the session active.",
         "data": {
           "phone_number": "Phone Number (e.g. +491701234567)",
           "pin": "PIN (4-6 digits)"
         }
       },
       "addon_2fa": {
-        "title": "Confirm Login in Trade Republic App",
-        "description": "A login request has been sent to your Trade Republic smartphone app. Please open the app and approve the login prompt, or enter the 4-digit push code if you received one.",
+        "title": "Confirm Login on Smartphone",
+        "description": "A login prompt was sent to your Trade Republic smartphone app. Please open the app on your phone and approve the request, or enter the 4-digit push code if you received a notification.",
         "data": {
-          "code": "4-Digit Push Code (Optional)"
+          "code": "4-digit Push Code (Optional)"
         }
       },
 
@@ -63,30 +63,34 @@
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate Trade Republic",
-        "description": "Your session has expired. If using the App, simply sync or log in again via Home Assistant. If using Manual Mode, enter a fresh session token or PIN.",
+        "title": "Re-authenticate Trade Republic",
+        "description": "Your session has expired.\n\n{addon_status}\n\nChoose how you would like to renew your session:",
         "data": {
           "reauth_action": "Action",
           "pin": "PIN (Manual Mode only, 4-6 digits)",
           "session_token": "Session Token (Manual Mode only)"
         }
+      },
+      "reauth_ingress": {
+        "title": "Trade Republic Add-on Web UI",
+        "description": "Click the button below to open the Trade Republic Add-on Web UI (Ingress) in a new tab. Log in there, then return to Home Assistant and click Next."
       }
 
 
     },
     "error": {
       "cannot_connect": "Failed to connect to Trade Republic servers.",
-      "cannot_connect_addon": "Could not connect to the Trade Republic Add-on. Please ensure the Add-on is started and host/port are reachable (default: 605cee21_traderepublic:8095).",
+      "cannot_connect_addon": "Could not connect to the Trade Republic Home Assistant Add-on. Please ensure the Add-on is started and host/port are reachable.",
       "invalid_auth": "Invalid credentials. Please check your phone number and PIN.",
       "invalid_code": "Invalid verification code",
       "invalid_pin": "PIN must be between 4 and 6 digits (numbers only)",
       "invalid_phone": "Please provide a valid international phone number (e.g. +491701234567)",
-      "addon_no_session": "No active session found in the Trade Republic Add-on. Please open the Add-on Web UI and log in first.",
+      "addon_no_session": "No active session found in the Trade Republic Add-on. Please log in via the Add-on Web UI or scan the QR code.",
       "addon_api_error": "Trade Republic rejected the login request (MISSING_REQUIRED_HEADER or WAF token error). This is an Add-on issue — please check Add-on logs, restart the Add-on, or wait for an Add-on update.",
       "addon_api_outdated": "Trade Republic has disabled the v1 login API (returned 426 CLIENT_VERSION_OUTDATED). The Add-on must be updated to support the current v2 push-approval login. Please update the Trade Republic Add-on.",
-      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to send a new login request to your Trade Republic app.",
+      "timeout_expired": "The login challenge timed out (2 minutes exceeded). Click Submit to send a new login request to your Trade Republic smartphone app.",
       "approval_pending": "Login not yet confirmed. Please open your Trade Republic smartphone app and approve the login prompt, then click Submit again.",
-      "qr_not_confirmed": "The QR code has not yet been approved in the Trade Republic app or has expired. Please re-scan the QR code and click Submit.",
+      "qr_not_confirmed": "The QR code has not yet been approved in your Trade Republic smartphone app or has expired. Please re-scan the QR code and click Submit.",
       "unknown": "An unexpected error occurred"
     },
 

@@ -323,3 +323,77 @@ async def test_config_flow_addon_scan_credentials_flow(hass: HomeAssistant) -> N
         )
         assert res["type"] == "form"
         assert res["step_id"] == "addon_2fa"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_user_addon_detected(hass: HomeAssistant) -> None:
+    """Test user step dynamically detecting running Add-on."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls:
+        client_instance = AsyncMock()
+        client_instance.fetch_session.return_value = (
+            "127.0.0.1",
+            {"session_token": None, "is_logged_in": False},
+        )
+        mock_client_cls.return_value = client_instance
+
+        res = await flow.async_step_user()
+        assert res["type"] == "form"
+        assert res["step_id"] == "user"
+        assert (
+            "127.0.0.1:8095" in res["description_placeholders"]["addon_detection_info"]
+        )
+
+
+@pytest.mark.asyncio
+async def test_config_flow_user_addon_not_detected(hass: HomeAssistant) -> None:
+    """Test user step displaying recommendation and repo link when Add-on not found."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls:
+        client_instance = AsyncMock()
+        client_instance.fetch_session.return_value = (None, None)
+        mock_client_cls.return_value = client_instance
+
+        res = await flow.async_step_user()
+        assert res["type"] == "form"
+        assert res["step_id"] == "user"
+        assert (
+            "https://github.com/FaserF/hassio-addons"
+            in res["description_placeholders"]["addon_detection_info"]
+        )
+
+
+@pytest.mark.asyncio
+async def test_config_flow_reauth_ingress_flow(hass: HomeAssistant) -> None:
+    """Test reauth ingress action opens external step in new tab."""
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    flow._addon_host = "edfe50eb_traderepublic"
+    flow._addon_port = 8095
+
+    # Trigger ingress action
+    res = await flow.async_step_reauth_ingress()
+    assert res["type"] == "external_step"
+    assert res["step_id"] == "reauth_ingress"
+    assert res["url"] == "/hassio/ingress/edfe50eb_traderepublic"

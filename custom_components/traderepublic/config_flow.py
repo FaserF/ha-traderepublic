@@ -704,7 +704,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Handle Step 1: Select connection method."""
+        """Handle Step 1: Select connection method with dynamic add-on detection."""
         if user_input is not None:
             self._auth_mode = user_input.get(CONF_AUTH_MODE, AUTH_MODE_ADDON)
             if self._auth_mode == AUTH_MODE_ADDON:
@@ -713,18 +713,62 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                 )
             return await self.async_step_manual()
 
+        # Dynamic add-on detection
+        addon_client = AddonClient(
+            default_host=self._addon_host, default_port=self._addon_port
+        )
+        detected_host, _ = await addon_client.fetch_session(
+            preferred_host=self._addon_host, port=self._addon_port
+        )
+        await addon_client.close()
+
+        is_de = getattr(
+            getattr(self.hass, "config", None), "language", "en"
+        ).startswith("de")
+        if detected_host:
+            self._addon_host = detected_host
+            addon_detection_info = (
+                f"✅ **Trade Republic Home Assistant Add-on erkannt** unter `{detected_host}:{self._addon_port}`.\n\n"
+                "Die Nutzung des Add-ons wird empfohlen, um Sitzungen ohne manuelle Tokens dauerhaft aktiv zu halten."
+                if is_de
+                else f"✅ **Trade Republic Home Assistant Add-on detected** at `{detected_host}:{self._addon_port}`.\n\n"
+                "Using the Add-on is recommended to keep sessions active automatically without manual tokens."
+            )
+        else:
+            addon_detection_info = (
+                "ℹ️ **Trade Republic Home Assistant Add-on nicht gefunden.**\n\n"
+                "Die Nutzung des Home Assistant Add-ons wird **dringend empfohlen**, um WAF-Challenges automatisch im Hintergrund zu lösen "
+                "und Sitzungen dauerhaft aktiv zu halten.\n\n"
+                "👉 [Trade Republic Add-on im Repository öffnen & installieren](https://github.com/FaserF/hassio-addons)"
+                if is_de
+                else "ℹ️ **Trade Republic Home Assistant Add-on not found.**\n\n"
+                "Using the Home Assistant Add-on is **strongly recommended** to automatically solve bot challenges "
+                "and keep sessions permanently alive without manual tokens.\n\n"
+                "👉 [Open & install Add-on from repository](https://github.com/FaserF/hassio-addons)"
+            )
+
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_AUTH_MODE, default=AUTH_MODE_ADDON): vol.In(
+                    vol.Required(
+                        CONF_AUTH_MODE,
+                        default=AUTH_MODE_ADDON if detected_host else AUTH_MODE_MANUAL,
+                    ): vol.In(
                         {
-                            AUTH_MODE_ADDON: "Trade Republic Home Assistant App (Recommended - Auto Keep-Alive)",
-                            AUTH_MODE_MANUAL: "Manual Credentials / Token (Classic Mode)",
+                            AUTH_MODE_ADDON: "Trade Republic Home Assistant Add-on (Empfohlen)"
+                            if is_de
+                            else "Trade Republic Home Assistant Add-on (Recommended)",
+                            AUTH_MODE_MANUAL: "Manuelle Zugangsdaten / Session-Token (Ohne Add-on)"
+                            if is_de
+                            else "Manual Credentials / Token (Without Add-on)",
                         }
                     ),
                 }
             ),
+            description_placeholders={
+                "addon_detection_info": addon_detection_info,
+            },
         )
 
     async def async_step_manual(
@@ -918,49 +962,117 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             else DEFAULT_ADDON_PORT
         )
 
-        # If in App mode, auto-check if session is already restored or forward directly to unified login
+        is_de = getattr(
+            getattr(self.hass, "config", None), "language", "en"
+        ).startswith("de")
+
+        # If in Add-on mode, present choices: sync active session, open Ingress Web UI in new tab, or log in directly in HA
         if auth_mode == AUTH_MODE_ADDON:
+            if user_input is not None:
+                action = user_input.get("reauth_action")
+                if action == "sync":
+                    addon_client = AddonClient(
+                        default_host=self._addon_host, default_port=self._addon_port
+                    )
+                    try:
+                        candidate, data = await addon_client.fetch_session(
+                            preferred_host=self._addon_host, port=self._addon_port
+                        )
+                        if candidate and data:
+                            token = data.get("session_token")
+                            is_logged_in = data.get("is_logged_in", True)
+                            if token and is_logged_in and entry:
+                                try:
+                                    from homeassistant.helpers import (
+                                        issue_registry as ir,
+                                    )
+
+                                    ir.async_delete_issue(
+                                        self.hass,
+                                        DOMAIN,
+                                        f"reauth_required_{entry.entry_id}",
+                                    )
+                                except Exception:  # noqa: BLE001
+                                    pass
+
+                                self.hass.config_entries.async_update_entry(
+                                    entry,
+                                    data={
+                                        **entry.data,
+                                        CONF_SESSION_TOKEN: token,
+                                        CONF_ADDON_HOST: candidate,
+                                    },
+                                )
+                                await self.hass.config_entries.async_reload(
+                                    entry.entry_id
+                                )
+                                return self.async_abort(reason="reauth_successful")
+                        errors["base"] = "addon_no_session"
+                    except Exception as exc:  # noqa: BLE001
+                        _LOGGER.debug(
+                            "Could not auto-restore session from Trade Republic Add-on: %s",
+                            exc,
+                        )
+                        errors["base"] = "cannot_connect_addon"
+                    finally:
+                        await addon_client.close()
+
+                elif action == "ingress":
+                    return await self.async_step_reauth_ingress()
+
+                elif action == "in_ha":
+                    return await self.async_step_addon_scan()
+
+            # Dynamic check of add-on reachability for reauth display
             addon_client = AddonClient(
                 default_host=self._addon_host, default_port=self._addon_port
             )
-            try:
-                candidate, data = await addon_client.fetch_session(
-                    preferred_host=self._addon_host, port=self._addon_port
+            detected_host, _ = await addon_client.fetch_session(
+                preferred_host=self._addon_host, port=self._addon_port
+            )
+            await addon_client.close()
+
+            if detected_host:
+                self._addon_host = detected_host
+                addon_status = (
+                    f"✅ **Trade Republic Home Assistant Add-on erkannt** unter `{detected_host}:{self._addon_port}`."
+                    if is_de
+                    else f"✅ **Trade Republic Home Assistant Add-on detected** at `{detected_host}:{self._addon_port}`."
                 )
-                if candidate and data:
-                    token = data.get("session_token")
-                    is_logged_in = data.get("is_logged_in", True)
-                    if token and is_logged_in and entry:
-                        try:
-                            from homeassistant.helpers import issue_registry as ir
-
-                            ir.async_delete_issue(
-                                self.hass,
-                                DOMAIN,
-                                f"reauth_required_{entry.entry_id}",
-                            )
-                        except Exception:  # noqa: BLE001
-                            pass
-
-                        self.hass.config_entries.async_update_entry(
-                            entry,
-                            data={
-                                **entry.data,
-                                CONF_SESSION_TOKEN: token,
-                                CONF_ADDON_HOST: candidate,
-                            },
-                        )
-                        await self.hass.config_entries.async_reload(entry.entry_id)
-                        return self.async_abort(reason="reauth_successful")
-            except Exception as exc:  # noqa: BLE001
-                _LOGGER.debug(
-                    "Could not auto-restore session from Trade Republic App: %s", exc
+            else:
+                addon_status = (
+                    "⚠️ **Trade Republic Home Assistant Add-on nicht erreichbar.** Bitte stelle sicher, dass das Add-on gestartet ist."
+                    if is_de
+                    else "⚠️ **Trade Republic Home Assistant Add-on unreachable.** Please ensure the Add-on is started."
                 )
-            finally:
-                await addon_client.close()
 
-            # Session not active in Add-on -> present unified QR Code & Credentials step directly
-            return await self.async_step_addon_scan(user_input)
+            return self.async_show_form(
+                step_id="reauth_confirm",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "reauth_action",
+                            default="sync" if detected_host else "ingress",
+                        ): vol.In(
+                            {
+                                "sync": "Sitzung vom Trade Republic Add-on synchronisieren"
+                                if is_de
+                                else "Sync session from Trade Republic Add-on",
+                                "ingress": "In Add-on Web-Oberfläche (Ingress) anmelden (öffnet neuen Tab)"
+                                if is_de
+                                else "Log in via Add-on Web UI (Ingress, opens new tab)",
+                                "in_ha": "Direkt in Home Assistant neu anmelden (QR-Code / Zugangsdaten)"
+                                if is_de
+                                else "Log in directly in Home Assistant (QR Code / Credentials)",
+                            }
+                        ),
+                    }
+                ),
+                description_placeholders={
+                    "addon_status": addon_status,
+                },
+                errors=errors,
+            )
 
         if user_input is not None:
             self._pin = user_input.get(CONF_PIN)
@@ -1026,6 +1138,71 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_reauth_ingress(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Open Trade Republic Ingress Web UI in a new tab for re-authentication."""
+        errors: dict[str, str] = {}
+        entry = self.hass.config_entries.async_get_entry(
+            self.context.get("entry_id", "")
+        )
+        slug = "edfe50eb_traderepublic"
+        if "605cee21" in str(self._addon_host):
+            slug = "605cee21_traderepublic"
+        ingress_url = f"/hassio/ingress/{slug}"
+
+        if user_input is not None:
+            # User completed Ingress authentication and clicked Next
+            addon_client = AddonClient(
+                default_host=self._addon_host, default_port=self._addon_port
+            )
+            try:
+                candidate, data = await addon_client.fetch_session(
+                    preferred_host=self._addon_host, port=self._addon_port
+                )
+                if candidate and data:
+                    token = data.get("session_token")
+                    phone = data.get("phone_number") or ""
+                    is_logged_in = data.get("is_logged_in", True)
+                    if token and is_logged_in and entry:
+                        try:
+                            from homeassistant.helpers import issue_registry as ir
+
+                            ir.async_delete_issue(
+                                self.hass,
+                                DOMAIN,
+                                f"reauth_required_{entry.entry_id}",
+                            )
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                        self.hass.config_entries.async_update_entry(
+                            entry,
+                            data={
+                                **entry.data,
+                                CONF_PHONE_NUMBER: phone
+                                or entry.data.get(CONF_PHONE_NUMBER, ""),
+                                CONF_SESSION_TOKEN: token,
+                                CONF_ADDON_HOST: candidate,
+                            },
+                        )
+                        await self.hass.config_entries.async_reload(entry.entry_id)
+                        return self.async_abort(reason="reauth_successful")
+                errors["base"] = "addon_no_session"
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Could not verify session from Trade Republic Add-on: %s", exc
+                )
+                errors["base"] = "cannot_connect_addon"
+            finally:
+                await addon_client.close()
+
+        return self.async_external_step(
+            step_id="reauth_ingress",
+            url=ingress_url,
+            description_placeholders={"ingress_url": ingress_url},
         )
 
 
