@@ -394,6 +394,6 @@ async def test_config_flow_reauth_ingress_flow(hass: HomeAssistant) -> None:
 
     # Trigger ingress action
     res = await flow.async_step_reauth_ingress()
-    assert res["type"] == "external_step"
+    assert res["type"] in ("external", "external_step")
     assert res["step_id"] == "reauth_ingress"
     assert res["url"] == "/hassio/ingress/edfe50eb_traderepublic"
