@@ -18,7 +18,7 @@ body:
     attributes:
       label: Integration Version
       description: Which version of ha-traderepublic are you running?
-      placeholder: e.g. v1.2.3
+      placeholder: e.g. v1.2.4
     validations:
       required: true
 
