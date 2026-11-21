@@ -33,10 +33,10 @@
 
       "addon_scan": {
         "title": "Trade Republic Login",
-        "description": "Please scan the QR code below using your Trade Republic smartphone app (Profile → Settings → Web Login / Scan QR).\n\n![QR Code]({qr_image})\n\n**If you leave the fields below empty and click Submit, the QR code scan will be checked.** Alternatively, enter your phone number and PIN below to log in directly via push notification on your smartphone.",
+        "description": "Scan the QR code with your smartphone camera OR enter your phone number & PIN below (Recommended).\n\n*Note on QR code: The Trade Republic mobile app does NOT have an in-app QR scanner in settings. The QR code is a deep-link for your phone camera. Depending on phone settings, scanning may open App Settings instead of starting login.*\n\n**Recommendation:** Enter your phone number & PIN below. Trade Republic will immediately send a push notification to your phone for 1-tap confirmation.\n\n![QR Code]({qr_image})",
         "data": {
-          "phone_number": "Phone Number (Optional for QR code, e.g. +491701234567)",
-          "pin": "PIN (Optional for QR code, 4-6 digits)"
+          "phone_number": "Phone Number (Recommended, e.g. +491701234567)",
+          "pin": "PIN (Recommended, 4-6 digits)"
         }
       },
       "addon_login": {
