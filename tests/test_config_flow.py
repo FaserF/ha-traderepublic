@@ -257,6 +257,7 @@ async def test_config_flow_addon_scan_qr_check(hass: HomeAssistant) -> None:
 
     flow = TradeRepublicConfigFlow()
     flow.hass = hass
+    flow.context = {}
     flow._addon_host = "127.0.0.1"
     flow._addon_port = 8095
 
@@ -290,6 +291,7 @@ async def test_config_flow_addon_scan_credentials_flow(hass: HomeAssistant) -> N
 
     flow = TradeRepublicConfigFlow()
     flow.hass = hass
+    flow.context = {}
     flow._addon_host = "127.0.0.1"
     flow._addon_port = 8095
 
