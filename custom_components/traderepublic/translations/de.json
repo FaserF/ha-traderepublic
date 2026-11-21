@@ -32,10 +32,11 @@
       },
 
       "addon_scan": {
-        "title": "Mit QR-Code anmelden (Trade Republic)",
-        "description": "Bitte scanne den untenstehenden QR-Code mit deiner Trade Republic Smartphone-App (Profil → Einstellungen → Web-Login/QR scannen).\n\n![QR Code]({qr_image})\n\n**Bitte klicke nach erfolgreichem Scannen auf Absenden.**",
+        "title": "Trade Republic Anmeldung",
+        "description": "Scanne den QR-Code mit deiner Trade Republic Smartphone-App (Profil → Einstellungen → Web-Login / QR scannen).\n\n![QR Code]({qr_image})\n\n**Wenn du die Felder unten leer lässt und auf Absenden klickst, wird der QR-Code geprüft.** Alternativ kannst du dich darunter direkt mit Telefonnummer und PIN anmelden.",
         "data": {
-          "use_phone_login": "Stattdessen mit Telefonnummer & PIN anmelden"
+          "phone_number": "Telefonnummer (Optional bei QR-Code, z. B. +491701234567)",
+          "pin": "PIN (Optional bei QR-Code, 4–6 Ziffern)"
         }
       },
       "addon_login": {

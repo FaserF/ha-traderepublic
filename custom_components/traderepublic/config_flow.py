@@ -209,65 +209,133 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
     async def async_step_addon_scan(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Display QR code login (Priority 1) or poll connection."""
+        """Display unified login: QR code scan or credentials in one step."""
         errors: dict[str, str] = {}
         addon_client = AddonClient(
             default_host=self._addon_host, default_port=self._addon_port
         )
 
         if user_input is not None:
-            if user_input.get("use_phone_login"):
-                return await self.async_step_addon_login()
-
-            # User clicked Submit -> poll add-on session
-            candidate, data = await addon_client.fetch_session(
-                preferred_host=self._addon_host, port=self._addon_port
+            raw_phone = (
+                user_input.get(CONF_PHONE_NUMBER, "")
+                .strip()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("/", "")
             )
-            if candidate and data:
-                token = data.get("session_token")
-                phone = data.get("phone_number") or ""
-                is_logged_in = data.get("is_logged_in", True)
+            raw_pin = (user_input.get(CONF_PIN) or "").strip()
 
-                if token and is_logged_in:
-                    clean_tok = token.strip().strip('"').strip("'")
-                    entry = self.hass.config_entries.async_get_entry(
-                        self.context.get("entry_id", "")
-                    )
-                    if entry:
-                        self.hass.config_entries.async_update_entry(
-                            entry,
+            if raw_phone or raw_pin:
+                # User filled in phone or PIN -> credentials login
+                if raw_phone.startswith("00"):
+                    self._phone_number = "+" + raw_phone[2:]
+                elif raw_phone.startswith("+"):
+                    self._phone_number = raw_phone
+                elif raw_phone.startswith("0") and len(raw_phone) >= 9:
+                    self._phone_number = "+49" + raw_phone[1:]
+                else:
+                    self._phone_number = "+" + raw_phone
+
+                digits_only = "".join(filter(str.isdigit, self._phone_number))
+                if not self._phone_number.startswith("+") or not (
+                    7 <= len(digits_only) <= 15
+                ):
+                    errors[CONF_PHONE_NUMBER] = "invalid_phone"
+
+                self._pin = raw_pin
+                if not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
+                    errors[CONF_PIN] = "invalid_pin"
+
+                if not errors:
+                    import aiohttp
+
+                    url_init = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.post(
+                                url_init,
+                                json={
+                                    "phone_number": self._phone_number,
+                                    "pin": self._pin,
+                                },
+                                timeout=aiohttp.ClientTimeout(total=45),
+                            ) as resp:
+                                if resp.status == 200:
+                                    data = await resp.json()
+                                    if data.get("success"):
+                                        return await self.async_step_addon_2fa()
+                                    errors["base"] = "addon_api_error"
+                                elif resp.status == 400:
+                                    err_data = await resp.json()
+                                    err_raw = str(err_data.get("detail", "")).lower()
+                                    if (
+                                        "missing" in err_raw
+                                        or "header" in err_raw
+                                        or "waf" in err_raw
+                                    ):
+                                        errors["base"] = "addon_api_error"
+                                    else:
+                                        errors["base"] = "invalid_auth"
+                                elif resp.status == 426:
+                                    errors["base"] = "addon_api_outdated"
+                                elif resp.status == 405:
+                                    errors["base"] = "addon_api_error"
+                                else:
+                                    errors["base"] = "addon_api_error"
+                    except aiohttp.ClientConnectorError:
+                        errors["base"] = "cannot_connect_addon"
+                    except Exception:  # noqa: BLE001
+                        errors["base"] = "cannot_connect_addon"
+            else:
+                # Neither phone nor PIN entered -> user wants QR code verification
+                candidate, data = await addon_client.fetch_session(
+                    preferred_host=self._addon_host, port=self._addon_port
+                )
+                if candidate and data:
+                    token = data.get("session_token")
+                    phone = data.get("phone_number") or ""
+                    is_logged_in = data.get("is_logged_in", True)
+
+                    if token and is_logged_in:
+                        clean_tok = token.strip().strip('"').strip("'")
+                        entry = self.hass.config_entries.async_get_entry(
+                            self.context.get("entry_id", "")
+                        )
+                        if entry:
+                            self.hass.config_entries.async_update_entry(
+                                entry,
+                                data={
+                                    **entry.data,
+                                    CONF_PHONE_NUMBER: phone
+                                    or entry.data.get(CONF_PHONE_NUMBER, ""),
+                                    CONF_SESSION_TOKEN: clean_tok,
+                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                                    CONF_ADDON_HOST: candidate,
+                                    CONF_ADDON_PORT: self._addon_port,
+                                },
+                            )
+                            await self.hass.config_entries.async_reload(entry.entry_id)
+                            return self.async_abort(reason="reauth_successful")
+
+                        await self.async_set_unique_id(
+                            phone.lower() if phone else "traderepublic"
+                        )
+                        self._abort_if_unique_id_configured()
+                        return self.async_create_entry(
+                            title=f"Trade Republic ({phone})"
+                            if phone
+                            else "Trade Republic",
                             data={
-                                **entry.data,
-                                CONF_PHONE_NUMBER: phone
-                                or entry.data.get(CONF_PHONE_NUMBER, ""),
+                                CONF_PHONE_NUMBER: phone,
+                                CONF_PIN: "",
                                 CONF_SESSION_TOKEN: clean_tok,
                                 CONF_AUTH_MODE: AUTH_MODE_ADDON,
                                 CONF_ADDON_HOST: candidate,
                                 CONF_ADDON_PORT: self._addon_port,
                             },
                         )
-                        await self.hass.config_entries.async_reload(entry.entry_id)
-                        return self.async_abort(reason="reauth_successful")
 
-                    await self.async_set_unique_id(
-                        phone.lower() if phone else "traderepublic"
-                    )
-                    self._abort_if_unique_id_configured()
-                    return self.async_create_entry(
-                        title=f"Trade Republic ({phone})"
-                        if phone
-                        else "Trade Republic",
-                        data={
-                            CONF_PHONE_NUMBER: phone,
-                            CONF_PIN: "",
-                            CONF_SESSION_TOKEN: clean_tok,
-                            CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                            CONF_ADDON_HOST: candidate,
-                            CONF_ADDON_PORT: self._addon_port,
-                        },
-                    )
-
-            errors["base"] = "qr_not_confirmed"
+                errors["base"] = "qr_not_confirmed"
 
         # Fetch latest QR code from Add-on (avoid forcing page reload unless retry > 0)
         qr_image = None
@@ -315,7 +383,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             step_id="addon_scan",
             data_schema=vol.Schema(
                 {
-                    vol.Optional("use_phone_login", default=True): bool,
+                    vol.Optional(CONF_PHONE_NUMBER): str,
+                    vol.Optional(CONF_PIN): str,
                 }
             ),
             description_placeholders={
@@ -849,72 +918,49 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             else DEFAULT_ADDON_PORT
         )
 
-        # If in App mode, try auto-refreshing from App or forward directly to in-HA login flow
+        # If in App mode, auto-check if session is already restored or forward directly to unified login
         if auth_mode == AUTH_MODE_ADDON:
-            if user_input is not None:
-                action = user_input.get("reauth_action", "refresh")
-                if action == "login":
-                    return await self.async_step_addon_scan()
-
-                addon_client = AddonClient(
-                    default_host=self._addon_host, default_port=self._addon_port
-                )
-                try:
-                    candidate, data = await addon_client.fetch_session(
-                        preferred_host=self._addon_host, port=self._addon_port
-                    )
-                    if candidate and data:
-                        token = data.get("session_token")
-                        is_logged_in = data.get("is_logged_in", True)
-                        if token and is_logged_in and entry:
-                            # In Add-on mode, the Add-on is the single source of truth and manages
-                            # the WebSocket. We trust the Addon's validated session rather than
-                            # opening a competing connection from HA that TR could reject/drop.
-                            try:
-                                from homeassistant.helpers import issue_registry as ir
-
-                                ir.async_delete_issue(
-                                    self.hass,
-                                    DOMAIN,
-                                    f"reauth_required_{entry.entry_id}",
-                                )
-                            except Exception:  # noqa: BLE001
-                                pass
-
-                            self.hass.config_entries.async_update_entry(
-                                entry,
-                                data={
-                                    **entry.data,
-                                    CONF_SESSION_TOKEN: token,
-                                    CONF_ADDON_HOST: candidate,
-                                },
-                            )
-                            await self.hass.config_entries.async_reload(entry.entry_id)
-                            return self.async_abort(reason="reauth_successful")
-                    # If no valid session in addon, forward user directly to QR scan flow
-                    return await self.async_step_addon_scan()
-                except Exception as exc:  # noqa: BLE001
-                    _LOGGER.error(
-                        "Failed to connect to Trade Republic App during reauth: %s", exc
-                    )
-                    return await self.async_step_addon_scan()
-                finally:
-                    await addon_client.close()
-
-            return self.async_show_form(
-                step_id="reauth_confirm",
-                data_schema=vol.Schema(
-                    {
-                        vol.Required("reauth_action", default="refresh"): vol.In(
-                            {
-                                "refresh": "Check/Sync Session from Trade Republic App",
-                                "login": "Log in again directly within Home Assistant",
-                            }
-                        ),
-                    }
-                ),
-                errors=errors,
+            addon_client = AddonClient(
+                default_host=self._addon_host, default_port=self._addon_port
             )
+            try:
+                candidate, data = await addon_client.fetch_session(
+                    preferred_host=self._addon_host, port=self._addon_port
+                )
+                if candidate and data:
+                    token = data.get("session_token")
+                    is_logged_in = data.get("is_logged_in", True)
+                    if token and is_logged_in and entry:
+                        try:
+                            from homeassistant.helpers import issue_registry as ir
+
+                            ir.async_delete_issue(
+                                self.hass,
+                                DOMAIN,
+                                f"reauth_required_{entry.entry_id}",
+                            )
+                        except Exception:  # noqa: BLE001
+                            pass
+
+                        self.hass.config_entries.async_update_entry(
+                            entry,
+                            data={
+                                **entry.data,
+                                CONF_SESSION_TOKEN: token,
+                                CONF_ADDON_HOST: candidate,
+                            },
+                        )
+                        await self.hass.config_entries.async_reload(entry.entry_id)
+                        return self.async_abort(reason="reauth_successful")
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Could not auto-restore session from Trade Republic App: %s", exc
+                )
+            finally:
+                await addon_client.close()
+
+            # Session not active in Add-on -> present unified QR Code & Credentials step directly
+            return await self.async_step_addon_scan(user_input)
 
         if user_input is not None:
             self._pin = user_input.get(CONF_PIN)

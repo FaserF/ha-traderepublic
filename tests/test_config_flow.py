@@ -246,3 +246,78 @@ async def test_config_flow_mfa_invalid_code(hass: HomeAssistant) -> None:
     assert res["type"] == "form"
     assert res["step_id"] == "mfa"
     assert res["errors"]["base"] == "invalid_code"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_scan_qr_check(hass: HomeAssistant) -> None:
+    """Test unified addon_scan step checking QR code when fields are left blank."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+
+    # Mock AddonClient returning active session
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls:
+        client_instance = AsyncMock()
+        client_instance.fetch_session.return_value = (
+            "127.0.0.1",
+            {
+                "session_token": "valid_token",
+                "phone_number": "+491701112233",
+                "is_logged_in": True,
+            },
+        )
+        mock_client_cls.return_value = client_instance
+
+        # Submitting with empty phone and pin -> triggers QR session polling
+        res = await flow.async_step_addon_scan(
+            user_input={"phone_number": "", "pin": ""}
+        )
+        assert res["type"] == "create_entry"
+        assert res["title"] == "Trade Republic (+491701112233)"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_scan_credentials_flow(hass: HomeAssistant) -> None:
+    """Test unified addon_scan step initiating credentials login when phone and PIN are entered."""
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+
+    class MockRespInit:
+        status = 200
+
+        async def json(self):
+            return {"success": True}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    class MockSessionInit:
+        def post(self, url, json=None, timeout=None):
+            return MockRespInit()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    with patch("aiohttp.ClientSession", return_value=MockSessionInit()):
+        res = await flow.async_step_addon_scan(
+            user_input={"phone_number": "+491701234567", "pin": "1234"}
+        )
+        assert res["type"] == "form"
+        assert res["step_id"] == "addon_2fa"
