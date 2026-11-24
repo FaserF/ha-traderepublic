@@ -12,8 +12,19 @@ from .const import DOMAIN
 
 TO_REDACT = {
     "pin",
+    "password",
+    "token",
+    "access_token",
+    "refresh_token",
     "session_token",
+    "cookie",
+    "api_key",
     "phone_number",
+    "email",
+    "iban",
+    "account_number",
+    "url",
+    "host",
 }
 
 
