@@ -21,6 +21,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import storage
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -119,7 +120,11 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
         session_token = self.config_entry.data.get(CONF_SESSION_TOKEN)
 
         if auth_mode == AUTH_MODE_ADDON:
-            addon_client = AddonClient(default_host=addon_host, default_port=addon_port)
+            addon_client = AddonClient(
+                session=async_get_clientsession(self.hass),
+                default_host=addon_host,
+                default_port=addon_port,
+            )
             try:
                 # Detect active/enabled entity categories in Home Assistant
                 requested_categories: list[str] = ["portfolio", "cash"]
@@ -130,28 +135,46 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                     entry_entities = er.async_entries_for_config_entry(
                         registry, self.config_entry.entry_id
                     )
-                    has_card = any(
-                        not e.disabled and "card" in (e.unique_id or "").lower()
-                        for e in entry_entities
-                    )
-                    has_savings = any(
-                        not e.disabled and "savings" in (e.unique_id or "").lower()
-                        for e in entry_entities
-                    )
-                    has_timeline = any(
-                        not e.disabled
-                        and (
-                            "timeline" in (e.unique_id or "").lower()
-                            or "transaction" in (e.unique_id or "").lower()
+                    if not entry_entities:
+                        requested_categories = [
+                            "portfolio",
+                            "cash",
+                            "savings",
+                            "card",
+                            "timeline",
+                        ]
+                    else:
+                        has_net_value = any(
+                            not e.disabled and "net_value" in (e.unique_id or "").lower()
+                            for e in entry_entities
                         )
-                        for e in entry_entities
-                    )
-                    if has_card:
-                        requested_categories.append("card")
-                    if has_savings:
-                        requested_categories.append("savings")
-                    if has_timeline:
-                        requested_categories.append("timeline")
+                        has_available_cash = any(
+                            not e.disabled
+                            and "available_cash" in (e.unique_id or "").lower()
+                            for e in entry_entities
+                        )
+                        has_card = has_available_cash or any(
+                            not e.disabled and "card" in (e.unique_id or "").lower()
+                            for e in entry_entities
+                        )
+                        has_savings = has_net_value or any(
+                            not e.disabled and "savings" in (e.unique_id or "").lower()
+                            for e in entry_entities
+                        )
+                        has_timeline = has_net_value or any(
+                            not e.disabled
+                            and (
+                                "timeline" in (e.unique_id or "").lower()
+                                or "transaction" in (e.unique_id or "").lower()
+                            )
+                            for e in entry_entities
+                        )
+                        if has_card:
+                            requested_categories.append("card")
+                        if has_savings:
+                            requested_categories.append("savings")
+                        if has_timeline:
+                            requested_categories.append("timeline")
                 except Exception as ent_err:  # noqa: BLE001
                     _LOGGER.debug("Could not inspect entity registry: %s", ent_err)
                     requested_categories = [
@@ -170,7 +193,21 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                 )
                 if cand and addon_data:
                     is_addon_logged_in = addon_data.get("is_logged_in", True)
-                    if not is_addon_logged_in:
+                    is_connecting = bool(addon_data.get("is_connecting"))
+                    auth_expired = bool(addon_data.get("auth_expired"))
+                    if not is_addon_logged_in or auth_expired:
+                        if is_connecting and not auth_expired:
+                            _LOGGER.debug(
+                                "Trade Republic Add-on is still connecting — deferring auth check"
+                            )
+                            if self.data and (
+                                self.data.get("net_value", 0.0) > 0.0
+                                or self.data.get("available_cash", 0.0) > 0.0
+                            ):
+                                return self.data
+                            raise UpdateFailed(
+                                "Trade Republic Add-on is connecting to Trade Republic..."
+                            )
                         _LOGGER.warning(
                             "Trade Republic Add-on reports session expired — "
                             "raising ConfigEntryAuthFailed to prompt re-authentication."
@@ -195,6 +232,28 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                             "Received complete live metrics directly from Add-on (%s)",
                             cand,
                         )
+                        if CONF_INTEREST_RATE in self.config_entry.options:
+                            override_rate = float(
+                                self.config_entry.options[CONF_INTEREST_RATE]
+                            )
+                            rate_factor = (
+                                override_rate / 100.0
+                                if override_rate > 1.0
+                                else override_rate
+                            )
+                            available_cash = float(
+                                payload_data.get("available_cash", 0.0)
+                            )
+                            payload_data["interest_rate"] = round(
+                                rate_factor * 100.0, 4
+                            )
+                            payload_data["accrued_interest_daily"] = available_cash * (
+                                rate_factor / 365.0
+                            )
+                            payload_data["accrued_interest_monthly_est"] = (
+                                available_cash * (rate_factor / 12.0)
+                            )
+
                         self._last_success = dt_util.now()
                         self._consecutive_failures = 0
                         self._backoff_until = None
@@ -211,8 +270,10 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                                 DOMAIN,
                                 f"reauth_required_{self.config_entry.entry_id}",
                             )
-                        except Exception:  # noqa: BLE001
-                            pass
+                        except Exception as issue_err:  # noqa: BLE001
+                            _LOGGER.debug(
+                                "Could not delete reauth issue: %s", issue_err
+                            )
 
                         # Guard against 0 total_profit glitch when markets are closed / ticker prices pending
                         if (

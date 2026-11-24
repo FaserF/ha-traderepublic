@@ -36,6 +36,10 @@ async def test_config_flow_addon(hass: HomeAssistant) -> None:
 
     with (
         patch(
+            "custom_components.traderepublic.api.AddonClient.fetch_session",
+            return_value=("127.0.0.1", {"session_token": None, "is_logged_in": False}),
+        ),
+        patch(
             "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
             new=mock_connect_addon,
         ),
@@ -87,6 +91,10 @@ async def test_config_flow_discovery(hass: HomeAssistant) -> None:
         )
 
     with (
+        patch(
+            "custom_components.traderepublic.api.AddonClient.fetch_session",
+            return_value=("127.0.0.1", {"session_token": None, "is_logged_in": False}),
+        ),
         patch(
             "custom_components.traderepublic.config_flow.TradeRepublicConfigFlow._async_connect_addon",
             new=mock_connect_addon,
@@ -397,3 +405,109 @@ async def test_config_flow_reauth_ingress_flow(hass: HomeAssistant) -> None:
     assert res["type"] in ("external", "external_step")
     assert res["step_id"] == "reauth_ingress"
     assert res["url"] == "/hassio/ingress/edfe50eb_traderepublic"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_closes_addon_client_sessions(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Verify AddonClient.close() is always awaited on user, addon_scan, and reauth_confirm."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    # 1. async_step_user closes AddonClient even if fetch_session raises
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {}
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls:
+        client_inst = AsyncMock()
+        client_inst.fetch_session.side_effect = RuntimeError("boom")
+        mock_client_cls.return_value = client_inst
+        with pytest.raises(RuntimeError):
+            await flow.async_step_user()
+        assert client_inst.close.await_count == 1
+
+    # 2. async_step_addon_scan closes AddonClient on form render
+    flow2 = TradeRepublicConfigFlow()
+    flow2.hass = hass
+    flow2.context = {}
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.AddonClient"
+        ) as mock_client_cls2,
+        patch("asyncio.sleep", return_value=None),
+    ):
+        client_inst2 = AsyncMock()
+        client_inst2.fetch_qr_code.return_value = ("127.0.0.1", None, False)
+        mock_client_cls2.return_value = client_inst2
+        res = await flow2.async_step_addon_scan()
+        assert res["type"] == "form"
+        assert client_inst2.close.await_count == 1
+
+    # 3. async_step_reauth_confirm closes AddonClient when checking add-on status
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        data={**mock_config_entry.data, "auth_mode": "addon"},
+    )
+    flow3 = TradeRepublicConfigFlow()
+    flow3.hass = hass
+    flow3.context = {"entry_id": mock_config_entry.entry_id}
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls3:
+        client_inst3 = AsyncMock()
+        client_inst3.fetch_session.return_value = (
+            "edfe50eb-traderepublic",
+            {"session_token": "tok", "is_logged_in": True},
+        )
+        mock_client_cls3.return_value = client_inst3
+        res3 = await flow3.async_step_reauth_confirm()
+        assert res3["type"] == "form"
+        assert "Active session ready to sync" in res3["description_placeholders"]["addon_status"]
+        assert client_inst3.close.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_scan_qr_reauth_updates_entry(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Verify addon_scan completes reauth cleanly when QR fetch detects active session."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+
+    mock_config_entry.add_to_hass(hass)
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {"entry_id": mock_config_entry.entry_id}
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.AddonClient"
+        ) as mock_client_cls,
+        patch.object(hass.config_entries, "async_reload", new=AsyncMock()) as mock_reload,
+    ):
+        client_inst = AsyncMock()
+        client_inst.fetch_qr_code.return_value = ("edfe50eb-traderepublic", None, True)
+        client_inst.fetch_session.return_value = (
+            "edfe50eb-traderepublic",
+            {
+                "session_token": "new_qr_token",
+                "phone_number": "+49123456789",
+                "is_logged_in": True,
+            },
+        )
+        mock_client_cls.return_value = client_inst
+
+        res = await flow.async_step_addon_scan()
+        assert res["type"] == "abort"
+        assert res["reason"] == "reauth_successful"
+        assert mock_config_entry.data["session_token"] == "new_qr_token"
+        assert mock_reload.await_count == 1
+        assert client_inst.close.await_count == 1

@@ -15,7 +15,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DEFAULT_INTEREST_RATE, DOMAIN
 from .coordinator import TradeRepublicDataUpdateCoordinator
 
 
@@ -142,7 +142,9 @@ class TradeRepublicCashSensor(TradeRepublicBaseEntity):
         if not self.coordinator.data:
             return None
         return {
-            "interest_rate": self.coordinator.data.get("interest_rate", 0.0375),
+            "interest_rate": self.coordinator.data.get(
+                "interest_rate", DEFAULT_INTEREST_RATE
+            ),
             "accrued_interest_daily": self.coordinator.data.get(
                 "accrued_interest_daily", 0.0
             ),

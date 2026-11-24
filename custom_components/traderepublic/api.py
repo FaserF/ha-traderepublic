@@ -58,7 +58,7 @@ class TradeRepublicAPIClient:
             loop = asyncio.get_running_loop()
             ssl_context = await loop.run_in_executor(None, ssl.create_default_context)
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
                 "Origin": "https://app.traderepublic.com",
             }
             clean_token = None
@@ -470,7 +470,10 @@ class TradeRepublicAPIClient:
                             elif sub_id == sub_savings_id:
                                 has_savings = True
                         except ValueError:
-                            pass
+                            _LOGGER.debug(
+                                "Ignoring non-integer subscription error id: %s",
+                                sub_id_str,
+                            )
 
             if not has_portfolio and not has_cash:
                 _LOGGER.error("No portfolio or cash data received from Trade Republic")
@@ -490,17 +493,17 @@ class TradeRepublicAPIClient:
                     isin = pos.get("isin")
                     if isin:
                         ex_ids = pos.get("exchangeIds")
+                        is_crypto = (
+                            pos.get("instrumentType") == "crypto"
+                            or isin.startswith("XF")
+                        )
+                        default_ex = "BHS" if is_crypto else "LSX"
                         ex_suffix = (
-                            ex_ids[0] if isinstance(ex_ids, list) and ex_ids else "LSX"
+                            ex_ids[0]
+                            if isinstance(ex_ids, list) and ex_ids
+                            else default_ex
                         )
-                        ticker_id = (
-                            isin
-                            if (
-                                pos.get("instrumentType") == "crypto"
-                                or isin.startswith("XF")
-                            )
-                            else f"{isin}.{ex_suffix}"
-                        )
+                        ticker_id = f"{isin}.{ex_suffix}"
                         await self._send(
                             f"sub {self._msg_id} "
                             + json.dumps({"type": "ticker", "id": ticker_id})
@@ -530,10 +533,10 @@ class TradeRepublicAPIClient:
                                         if isinstance(val, dict):
                                             p = val.get("price")
                                             if p is not None:
-                                                try:
+                                                with contextlib.suppress(
+                                                    ValueError, TypeError
+                                                ):
                                                     return float(p)
-                                                except ValueError, TypeError:
-                                                    pass
                                         return None
 
                                     extracted_price = (
@@ -689,6 +692,14 @@ class AddonClient:
         if self._owns_session and self._session and not self._session.closed:
             await self._session.close()
 
+    async def __aenter__(self) -> AddonClient:
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit async context manager and close owned session."""
+        await self.close()
+
     def get_candidate_hosts(self, preferred_host: str | None = None) -> list[str]:
         """Get ordered list of candidate hosts to try."""
         from .const import ADDON_CONTAINER_HOSTS
@@ -721,7 +732,9 @@ class AddonClient:
                 url_status = f"http://{host}:{p}/api/v1/status"
                 try:
                     async with session.get(
-                        url_session, timeout=aiohttp.ClientTimeout(total=3)
+                        url_session,
+                        headers=self._auth_headers,
+                        timeout=aiohttp.ClientTimeout(total=3),
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
@@ -729,7 +742,9 @@ class AddonClient:
                         if resp.status == 404:
                             # Addon is reachable but no active session token yet
                             async with session.get(
-                                url_status, timeout=aiohttp.ClientTimeout(total=3)
+                                url_status,
+                                headers=self._auth_headers,
+                                timeout=aiohttp.ClientTimeout(total=3),
                             ) as status_resp:
                                 if status_resp.status == 200:
                                     status_data = await status_resp.json()
@@ -764,7 +779,10 @@ class AddonClient:
             url = f"http://{host}:{target_port}/api/v1/data"
             try:
                 async with session.get(
-                    url, params=params, timeout=aiohttp.ClientTimeout(total=5)
+                    url,
+                    params=params,
+                    headers=self._auth_headers,
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -796,7 +814,10 @@ class AddonClient:
             url = f"http://{host}:{target_port}/api/v1/timeline"
             try:
                 async with session.get(
-                    url, params=params, timeout=aiohttp.ClientTimeout(total=8)
+                    url,
+                    params=params,
+                    headers=self._auth_headers,
+                    timeout=aiohttp.ClientTimeout(total=8),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -825,7 +846,9 @@ class AddonClient:
                     host,
                 )
                 async with session.post(
-                    url, timeout=aiohttp.ClientTimeout(total=5)
+                    url,
+                    headers=self._auth_headers,
+                    timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
@@ -863,7 +886,9 @@ class AddonClient:
                 url = f"http://{host}:{p}/api/v1/login/qr{ref_param}"
                 try:
                     async with session.get(
-                        url, timeout=aiohttp.ClientTimeout(total=15)
+                        url,
+                        headers=self._auth_headers,
+                        timeout=aiohttp.ClientTimeout(total=15),
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
