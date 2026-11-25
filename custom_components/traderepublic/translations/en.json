@@ -64,11 +64,25 @@
       },
       "reauth_confirm": {
         "title": "Re-authenticate Trade Republic",
-        "description": "Your session has expired.\n\n{addon_status}\n\nChoose how you would like to renew your session:",
+        "description": "Your session has expired.\n\n✅ **Trade Republic Home Assistant Add-on detected** at `{addon_host}:{addon_port}` with an active session.\n\nChoose how you would like to renew your session:",
         "data": {
           "reauth_action": "Action",
           "pin": "PIN (Manual Mode only, 4-6 digits)",
           "session_token": "Session Token (Manual Mode only)"
+        }
+      },
+      "reauth_confirm_no_session": {
+        "title": "Re-authenticate Trade Republic",
+        "description": "Your session has expired.\n\n✅ **Trade Republic Home Assistant Add-on is running** at `{addon_host}:{addon_port}`, but no active session is logged in yet.\n\nChoose how you would like to re-authenticate:",
+        "data": {
+          "reauth_action": "Action"
+        }
+      },
+      "reauth_confirm_offline": {
+        "title": "Re-authenticate Trade Republic",
+        "description": "Your session has expired.\n\n⚠️ **Trade Republic Home Assistant Add-on unreachable** at `{addon_host}:{addon_port}`. Please ensure the Add-on is started.\n\nChoose how you would like to renew your session:",
+        "data": {
+          "reauth_action": "Action"
         }
       },
       "reauth_ingress": {
@@ -116,6 +130,21 @@
     "reauth_required": {
       "title": "Trade Republic Re-authentication Required",
       "description": "Your Trade Republic session has expired. Please re-authenticate your integration."
+    }
+  },
+  "selector": {
+    "auth_mode": {
+      "options": {
+        "addon": "Trade Republic Home Assistant Add-on (Recommended)",
+        "manual": "Manual Credentials / Token (Without Add-on)"
+      }
+    },
+    "reauth_action": {
+      "options": {
+        "sync": "Sync session from Trade Republic Add-on",
+        "ingress": "Log in via Add-on Web UI (Ingress, opens new tab)",
+        "in_ha": "Log in directly in Home Assistant (QR Code / Credentials)"
+      }
     }
   },
   "entity": {

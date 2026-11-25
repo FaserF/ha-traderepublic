@@ -11,6 +11,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import callback
+from homeassistant.helpers import selector
 from homeassistant.helpers.service_info.hassio import HassioServiceInfo
 
 from .api import (
@@ -64,6 +65,54 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
         self._addon_host: str = DEFAULT_ADDON_HOST
         self._addon_port: int = DEFAULT_ADDON_PORT
         self._addon_2fa_timed_out: bool = False
+
+    async def _async_finish_addon_auth(
+        self, token: str, phone: str, host: str, port: int
+    ) -> ConfigFlowResult:
+        """Persist add-on session token for either reauth or initial setup."""
+        clean_tok = token.strip().strip('"').strip("'")
+        entry = self.hass.config_entries.async_get_entry(
+            self.context.get("entry_id", "")
+        )
+        if entry:
+            try:
+                from homeassistant.helpers import issue_registry as ir
+
+                ir.async_delete_issue(
+                    self.hass,
+                    DOMAIN,
+                    f"reauth_required_{entry.entry_id}",
+                )
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.debug("Failed to delete reauth repair issue: %s", exc)
+
+            self.hass.config_entries.async_update_entry(
+                entry,
+                data={
+                    **entry.data,
+                    CONF_PHONE_NUMBER: phone or entry.data.get(CONF_PHONE_NUMBER, ""),
+                    CONF_SESSION_TOKEN: clean_tok,
+                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                    CONF_ADDON_HOST: host,
+                    CONF_ADDON_PORT: port,
+                },
+            )
+            await self.hass.config_entries.async_reload(entry.entry_id)
+            return self.async_abort(reason="reauth_successful")
+
+        await self.async_set_unique_id(phone.lower() if phone else "traderepublic")
+        self._abort_if_unique_id_configured()
+        return self.async_create_entry(
+            title=f"Trade Republic ({phone})" if phone else "Trade Republic",
+            data={
+                CONF_PHONE_NUMBER: phone,
+                CONF_PIN: "",
+                CONF_SESSION_TOKEN: clean_tok,
+                CONF_AUTH_MODE: AUTH_MODE_ADDON,
+                CONF_ADDON_HOST: host,
+                CONF_ADDON_PORT: port,
+            },
+        )
 
     async def async_step_hassio(  # type: ignore[override]
         self, discovery_info: HassioServiceInfo
@@ -267,7 +316,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                                         errors["base"] = "addon_api_error"
                                     elif resp.status == 400:
                                         err_data = await resp.json()
-                                        err_raw = str(err_data.get("detail", "")).lower()
+                                        err_raw = str(
+                                            err_data.get("detail", "")
+                                        ).lower()
                                         if (
                                             "missing" in err_raw
                                             or "header" in err_raw
@@ -297,58 +348,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                         is_logged_in = data.get("is_logged_in", True)
 
                         if token and is_logged_in:
-                            clean_tok = token.strip().strip('"').strip("'")
-                            entry = self.hass.config_entries.async_get_entry(
-                                self.context.get("entry_id", "")
-                            )
-                            if entry:
-                                try:
-                                    from homeassistant.helpers import (
-                                        issue_registry as ir,
-                                    )
-
-                                    ir.async_delete_issue(
-                                        self.hass,
-                                        DOMAIN,
-                                        f"reauth_required_{entry.entry_id}",
-                                    )
-                                except Exception as issue_err:  # noqa: BLE001
-                                    _LOGGER.debug(
-                                        "Could not delete reauth issue: %s", issue_err
-                                    )
-                                self.hass.config_entries.async_update_entry(
-                                    entry,
-                                    data={
-                                        **entry.data,
-                                        CONF_PHONE_NUMBER: phone
-                                        or entry.data.get(CONF_PHONE_NUMBER, ""),
-                                        CONF_SESSION_TOKEN: clean_tok,
-                                        CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                        CONF_ADDON_HOST: candidate,
-                                        CONF_ADDON_PORT: self._addon_port,
-                                    },
-                                )
-                                await self.hass.config_entries.async_reload(
-                                    entry.entry_id
-                                )
-                                return self.async_abort(reason="reauth_successful")
-
-                            await self.async_set_unique_id(
-                                phone.lower() if phone else "traderepublic"
-                            )
-                            self._abort_if_unique_id_configured()
-                            return self.async_create_entry(
-                                title=f"Trade Republic ({phone})"
-                                if phone
-                                else "Trade Republic",
-                                data={
-                                    CONF_PHONE_NUMBER: phone,
-                                    CONF_PIN: "",
-                                    CONF_SESSION_TOKEN: clean_tok,
-                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                    CONF_ADDON_HOST: candidate,
-                                    CONF_ADDON_PORT: self._addon_port,
-                                },
+                            return await self._async_finish_addon_auth(
+                                token, phone, candidate, self._addon_port
                             )
 
                     errors["base"] = "qr_not_confirmed"
@@ -371,56 +372,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                     if data and data.get("session_token"):
                         token = data.get("session_token")
                         phone = data.get("phone_number") or ""
-                        clean_tok = str(token).strip().strip('"').strip("'")
-                        entry = self.hass.config_entries.async_get_entry(
-                            self.context.get("entry_id", "")
-                        )
-                        if entry:
-                            try:
-                                from homeassistant.helpers import (
-                                    issue_registry as ir,
-                                )
-
-                                ir.async_delete_issue(
-                                    self.hass,
-                                    DOMAIN,
-                                    f"reauth_required_{entry.entry_id}",
-                                )
-                            except Exception as issue_err:  # noqa: BLE001
-                                _LOGGER.debug(
-                                    "Could not delete reauth issue: %s", issue_err
-                                )
-                            self.hass.config_entries.async_update_entry(
-                                entry,
-                                data={
-                                    **entry.data,
-                                    CONF_PHONE_NUMBER: phone
-                                    or entry.data.get(CONF_PHONE_NUMBER, ""),
-                                    CONF_SESSION_TOKEN: clean_tok,
-                                    CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                    CONF_ADDON_HOST: candidate or self._addon_host,
-                                    CONF_ADDON_PORT: self._addon_port,
-                                },
-                            )
-                            await self.hass.config_entries.async_reload(entry.entry_id)
-                            return self.async_abort(reason="reauth_successful")
-
-                        await self.async_set_unique_id(
-                            phone.lower() if phone else "traderepublic"
-                        )
-                        self._abort_if_unique_id_configured()
-                        return self.async_create_entry(
-                            title=f"Trade Republic ({phone})"
-                            if phone
-                            else "Trade Republic",
-                            data={
-                                CONF_PHONE_NUMBER: phone,
-                                CONF_PIN: "",
-                                CONF_SESSION_TOKEN: clean_tok,
-                                CONF_AUTH_MODE: AUTH_MODE_ADDON,
-                                CONF_ADDON_HOST: candidate or self._addon_host,
-                                CONF_ADDON_PORT: self._addon_port,
-                            },
+                        return await self._async_finish_addon_auth(
+                            token,
+                            phone,
+                            candidate or self._addon_host,
+                            self._addon_port,
                         )
                 if qr_data:
                     qr_image = qr_data
@@ -816,15 +772,12 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                     vol.Required(
                         CONF_AUTH_MODE,
                         default=AUTH_MODE_ADDON if detected_host else AUTH_MODE_MANUAL,
-                    ): vol.In(
-                        {
-                            AUTH_MODE_ADDON: "Trade Republic Home Assistant Add-on (Empfohlen)"
-                            if is_de
-                            else "Trade Republic Home Assistant Add-on (Recommended)",
-                            AUTH_MODE_MANUAL: "Manuelle Zugangsdaten / Session-Token (Ohne Add-on)"
-                            if is_de
-                            else "Manual Credentials / Token (Without Add-on)",
-                        }
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=[AUTH_MODE_ADDON, AUTH_MODE_MANUAL],
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="auth_mode",
+                        )
                     ),
                 }
             ),
@@ -1030,10 +983,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             else DEFAULT_ADDON_PORT
         )
 
-        is_de = getattr(
-            getattr(self.hass, "config", None), "language", "en"
-        ).startswith("de")
-
         # If in Add-on mode, present choices: sync active session, open Ingress Web UI in new tab, or log in directly in HA
         if auth_mode == AUTH_MODE_ADDON:
             if user_input is not None:
@@ -1048,35 +997,12 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                         )
                         if candidate and data:
                             token = data.get("session_token")
+                            phone = data.get("phone_number") or ""
                             is_logged_in = data.get("is_logged_in", True)
                             if token and is_logged_in and entry:
-                                try:
-                                    from homeassistant.helpers import (
-                                        issue_registry as ir,
-                                    )
-
-                                    ir.async_delete_issue(
-                                        self.hass,
-                                        DOMAIN,
-                                        f"reauth_required_{entry.entry_id}",
-                                    )
-                                except Exception as issue_err:  # noqa: BLE001
-                                    _LOGGER.debug(
-                                        "Could not delete reauth issue: %s", issue_err
-                                    )
-
-                                self.hass.config_entries.async_update_entry(
-                                    entry,
-                                    data={
-                                        **entry.data,
-                                        CONF_SESSION_TOKEN: token,
-                                        CONF_ADDON_HOST: candidate,
-                                    },
+                                return await self._async_finish_addon_auth(
+                                    token, phone, candidate, self._addon_port
                                 )
-                                await self.hass.config_entries.async_reload(
-                                    entry.entry_id
-                                )
-                                return self.async_abort(reason="reauth_successful")
                         errors["base"] = "addon_no_session"
                     except Exception as exc:  # noqa: BLE001
                         _LOGGER.debug(
@@ -1093,67 +1019,53 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                 elif action == "in_ha":
                     return await self.async_step_addon_scan()
 
-            # Dynamic check of add-on reachability for reauth display
+            # Dynamic check of add-on reachability and session state for reauth display
             addon_client = AddonClient(
                 default_host=self._addon_host, default_port=self._addon_port
             )
             try:
-                detected_host, session_data = await addon_client.fetch_session(
+                detected_host, detected_data = await addon_client.fetch_session(
                     preferred_host=self._addon_host, port=self._addon_port
                 )
             finally:
                 await addon_client.close()
 
+            has_active_session = bool(
+                detected_data
+                and detected_data.get("session_token")
+                and detected_data.get("is_logged_in", False)
+            )
             if detected_host:
                 self._addon_host = detected_host
-                has_active_session = bool(
-                    session_data
-                    and session_data.get("session_token")
-                    and session_data.get("is_logged_in")
-                )
-                ready_suffix = (
-                    " (Aktive Sitzung bereit zum Synchronisieren)"
-                    if has_active_session and is_de
-                    else (
-                        " (Active session ready to sync)" if has_active_session else ""
-                    )
-                )
-                addon_status = (
-                    f"✅ **Trade Republic Home Assistant Add-on erkannt** unter `{detected_host}:{self._addon_port}`{ready_suffix}."
-                    if is_de
-                    else f"✅ **Trade Republic Home Assistant Add-on detected** at `{detected_host}:{self._addon_port}`{ready_suffix}."
-                )
+                if has_active_session:
+                    step_id = "reauth_confirm"
+                    default_action = "sync"
+                else:
+                    step_id = "reauth_confirm_no_session"
+                    default_action = "in_ha"
             else:
-                addon_status = (
-                    "⚠️ **Trade Republic Home Assistant Add-on nicht erreichbar.** Bitte stelle sicher, dass das Add-on gestartet ist."
-                    if is_de
-                    else "⚠️ **Trade Republic Home Assistant Add-on unreachable.** Please ensure the Add-on is started."
-                )
+                step_id = "reauth_confirm_offline"
+                default_action = "in_ha"
 
             return self.async_show_form(
-                step_id="reauth_confirm",
+                step_id=step_id,
                 data_schema=vol.Schema(
                     {
                         vol.Required(
                             "reauth_action",
-                            default="sync" if detected_host else "ingress",
-                        ): vol.In(
-                            {
-                                "sync": "Sitzung vom Trade Republic Add-on synchronisieren"
-                                if is_de
-                                else "Sync session from Trade Republic Add-on",
-                                "ingress": "In Add-on Web-Oberfläche (Ingress) anmelden (öffnet neuen Tab)"
-                                if is_de
-                                else "Log in via Add-on Web UI (Ingress, opens new tab)",
-                                "in_ha": "Direkt in Home Assistant neu anmelden (QR-Code / Zugangsdaten)"
-                                if is_de
-                                else "Log in directly in Home Assistant (QR Code / Credentials)",
-                            }
+                            default=default_action,
+                        ): selector.SelectSelector(
+                            selector.SelectSelectorConfig(
+                                options=["sync", "ingress", "in_ha"],
+                                mode=selector.SelectSelectorMode.LIST,
+                                translation_key="reauth_action",
+                            )
                         ),
                     }
                 ),
                 description_placeholders={
-                    "addon_status": addon_status,
+                    "addon_host": self._addon_host,
+                    "addon_port": str(self._addon_port),
                 },
                 errors=errors,
             )
@@ -1229,6 +1141,18 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             ),
             errors=errors,
         )
+
+    async def async_step_reauth_confirm_no_session(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reauth confirmation when add-on is running without an active session."""
+        return await self.async_step_reauth_confirm(user_input)
+
+    async def async_step_reauth_confirm_offline(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Handle reauth confirmation when add-on is unreachable."""
+        return await self.async_step_reauth_confirm(user_input)
 
     async def async_step_reauth_ingress(
         self, user_input: dict[str, Any] | None = None

@@ -64,11 +64,25 @@
       },
       "reauth_confirm": {
         "title": "Trade Republic neu authentifizieren",
-        "description": "Deine Sitzung ist abgelaufen.\n\n{addon_status}\n\nWähle, wie du die Sitzung erneuern möchtest:",
+        "description": "Deine Sitzung ist abgelaufen.\n\n✅ **Trade Republic Home Assistant Add-on erkannt** unter `{addon_host}:{addon_port}` (aktive Sitzung gefunden).\n\nWähle, wie du die Sitzung erneuern möchtest:",
         "data": {
           "reauth_action": "Aktion",
           "pin": "PIN (nur Manueller Modus, 4-6 Ziffern)",
           "session_token": "Session Token (nur Manueller Modus)"
+        }
+      },
+      "reauth_confirm_no_session": {
+        "title": "Trade Republic neu authentifizieren",
+        "description": "Deine Sitzung ist abgelaufen.\n\n✅ **Trade Republic Home Assistant Add-on läuft** unter `{addon_host}:{addon_port}`, es ist jedoch noch keine aktive Sitzung angemeldet.\n\nWähle, wie du dich neu anmelden möchtest:",
+        "data": {
+          "reauth_action": "Aktion"
+        }
+      },
+      "reauth_confirm_offline": {
+        "title": "Trade Republic neu authentifizieren",
+        "description": "Deine Sitzung ist abgelaufen.\n\n⚠️ **Trade Republic Home Assistant Add-on nicht erreichbar** unter `{addon_host}:{addon_port}`. Bitte stelle sicher, dass das Add-on gestartet ist.\n\nWähle, wie du die Sitzung erneuern möchtest:",
+        "data": {
+          "reauth_action": "Aktion"
         }
       },
       "reauth_ingress": {
@@ -118,6 +132,21 @@
     }
   },
 
+  "selector": {
+    "auth_mode": {
+      "options": {
+        "addon": "Trade Republic Home Assistant Add-on (Empfohlen)",
+        "manual": "Manuelle Zugangsdaten / Session-Token (Ohne Add-on)"
+      }
+    },
+    "reauth_action": {
+      "options": {
+        "sync": "Sitzung vom Trade Republic Add-on synchronisieren",
+        "ingress": "In Add-on Web-Oberfläche (Ingress) anmelden (öffnet neuen Tab)",
+        "in_ha": "Direkt in Home Assistant neu anmelden (QR-Code / Zugangsdaten)"
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "net_value": {

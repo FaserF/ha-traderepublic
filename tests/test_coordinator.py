@@ -113,7 +113,13 @@ async def test_coordinator_connecting_state_and_interest_override(
         data = await coordinator._async_update_data()
         assert data["net_value"] == 5000.0
         requested_cats = mock_fetch.call_args.kwargs["requested_categories"]
-        assert set(requested_cats) == {"portfolio", "cash", "savings", "card", "timeline"}
+        assert set(requested_cats) == {
+            "portfolio",
+            "cash",
+            "savings",
+            "card",
+            "timeline",
+        }
 
     # 2. Connecting state with no cache raises UpdateFailed (not ConfigEntryAuthFailed)
     coordinator.data = {}
@@ -130,7 +136,8 @@ async def test_coordinator_connecting_state_and_interest_override(
     # 3. Registered net_value + available_cash entities still request savings, card, and timeline
     fake_entries = [
         SimpleNamespace(
-            disabled=False, unique_id=f"traderepublic_net_value_{mock_config_entry.entry_id}"
+            disabled=False,
+            unique_id=f"traderepublic_net_value_{mock_config_entry.entry_id}",
         ),
         SimpleNamespace(
             disabled=False,
@@ -163,4 +170,6 @@ async def test_coordinator_connecting_state_and_interest_override(
         cats = mock_fetch2.call_args.kwargs["requested_categories"]
         assert {"portfolio", "cash", "savings", "card", "timeline"}.issubset(set(cats))
         assert result["interest_rate"] == 3.5
-        assert result["accrued_interest_daily"] == pytest.approx(2000.0 * (0.035 / 365.0))
+        assert result["accrued_interest_daily"] == pytest.approx(
+            2000.0 * (0.035 / 365.0)
+        )

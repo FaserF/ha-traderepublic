@@ -145,7 +145,8 @@ class TradeRepublicDataUpdateCoordinator(DataUpdateCoordinator):
                         ]
                     else:
                         has_net_value = any(
-                            not e.disabled and "net_value" in (e.unique_id or "").lower()
+                            not e.disabled
+                            and "net_value" in (e.unique_id or "").lower()
                             for e in entry_entities
                         )
                         has_available_cash = any(

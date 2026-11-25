@@ -493,10 +493,9 @@ class TradeRepublicAPIClient:
                     isin = pos.get("isin")
                     if isin:
                         ex_ids = pos.get("exchangeIds")
-                        is_crypto = (
-                            pos.get("instrumentType") == "crypto"
-                            or isin.startswith("XF")
-                        )
+                        is_crypto = pos.get(
+                            "instrumentType"
+                        ) == "crypto" or isin.startswith("XF")
                         default_ex = "BHS" if is_crypto else "LSX"
                         ex_suffix = (
                             ex_ids[0]

@@ -467,7 +467,10 @@ async def test_config_flow_closes_addon_client_sessions(
         mock_client_cls3.return_value = client_inst3
         res3 = await flow3.async_step_reauth_confirm()
         assert res3["type"] == "form"
-        assert "Active session ready to sync" in res3["description_placeholders"]["addon_status"]
+        assert res3["step_id"] == "reauth_confirm"
+        assert (
+            res3["description_placeholders"]["addon_host"] == "edfe50eb-traderepublic"
+        )
         assert client_inst3.close.await_count == 1
 
 
@@ -491,7 +494,9 @@ async def test_config_flow_addon_scan_qr_reauth_updates_entry(
         patch(
             "custom_components.traderepublic.config_flow.AddonClient"
         ) as mock_client_cls,
-        patch.object(hass.config_entries, "async_reload", new=AsyncMock()) as mock_reload,
+        patch.object(
+            hass.config_entries, "async_reload", new=AsyncMock()
+        ) as mock_reload,
     ):
         client_inst = AsyncMock()
         client_inst.fetch_qr_code.return_value = ("edfe50eb-traderepublic", None, True)
@@ -511,3 +516,121 @@ async def test_config_flow_addon_scan_qr_reauth_updates_entry(
         assert mock_config_entry.data["session_token"] == "new_qr_token"
         assert mock_reload.await_count == 1
         assert client_inst.close.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_config_flow_reauth_confirm_no_session_defaults_to_in_ha(
+    hass: HomeAssistant,
+) -> None:
+    """Test reauth_confirm shows reauth_confirm_no_session and defaults to in_ha when addon has no active session."""
+    from unittest.mock import AsyncMock
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+    from custom_components.traderepublic.const import (
+        AUTH_MODE_ADDON,
+        CONF_ADDON_HOST,
+        CONF_ADDON_PORT,
+        CONF_AUTH_MODE,
+        DOMAIN,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_AUTH_MODE: AUTH_MODE_ADDON,
+            CONF_ADDON_HOST: "edfe50eb-traderepublic",
+            CONF_ADDON_PORT: 8095,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {"entry_id": entry.entry_id}
+
+    with patch(
+        "custom_components.traderepublic.config_flow.AddonClient"
+    ) as mock_client_cls:
+        client_instance = AsyncMock()
+        client_instance.fetch_session.return_value = (
+            "edfe50eb-traderepublic",
+            {"session_token": "expired_tok", "is_logged_in": False},
+        )
+        mock_client_cls.return_value = client_instance
+
+        res = await flow.async_step_reauth_confirm()
+        assert res["type"] == "form"
+        assert res["step_id"] == "reauth_confirm_no_session"
+        assert res["description_placeholders"] == {
+            "addon_host": "edfe50eb-traderepublic",
+            "addon_port": "8095",
+        }
+        schema_keys = list(res["data_schema"].schema.keys())
+        assert schema_keys[0].default() == "in_ha"
+
+
+@pytest.mark.asyncio
+async def test_config_flow_reauth_confirm_active_session_syncs(
+    hass: HomeAssistant,
+) -> None:
+    """Test reauth_confirm defaults to sync and updates entry when addon has an active session."""
+    from unittest.mock import AsyncMock
+
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+    from custom_components.traderepublic.const import (
+        AUTH_MODE_ADDON,
+        CONF_ADDON_HOST,
+        CONF_ADDON_PORT,
+        CONF_AUTH_MODE,
+        CONF_SESSION_TOKEN,
+        DOMAIN,
+    )
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_AUTH_MODE: AUTH_MODE_ADDON,
+            CONF_ADDON_HOST: "edfe50eb-traderepublic",
+            CONF_ADDON_PORT: 8095,
+            CONF_SESSION_TOKEN: "old_tok",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {"entry_id": entry.entry_id}
+
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.AddonClient"
+        ) as mock_client_cls,
+        patch.object(hass.config_entries, "async_reload", new=AsyncMock()),
+    ):
+        client_instance = AsyncMock()
+        client_instance.fetch_session.return_value = (
+            "edfe50eb-traderepublic",
+            {
+                "session_token": "fresh_tok",
+                "phone_number": "+491701234567",
+                "is_logged_in": True,
+            },
+        )
+        mock_client_cls.return_value = client_instance
+
+        res = await flow.async_step_reauth_confirm()
+        assert res["type"] == "form"
+        assert res["step_id"] == "reauth_confirm"
+        schema_keys = list(res["data_schema"].schema.keys())
+        assert schema_keys[0].default() == "sync"
+
+        res_sync = await flow.async_step_reauth_confirm(
+            user_input={"reauth_action": "sync"}
+        )
+        assert res_sync["type"] == "abort"
+        assert res_sync["reason"] == "reauth_successful"
+        assert entry.data[CONF_SESSION_TOKEN] == "fresh_tok"
