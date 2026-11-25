@@ -258,87 +258,87 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
     async def async_step_addon_scan(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Display unified login: QR code scan or credentials in one step."""
+        """Display unified login: credentials (phone + PIN) first, or QR code if PIN omitted."""
         errors: dict[str, str] = {}
-        addon_client = AddonClient(
-            default_host=self._addon_host, default_port=self._addon_port
-        )
-        try:
-            if user_input is not None:
-                raw_phone = (
-                    user_input.get(CONF_PHONE_NUMBER, "")
-                    .strip()
-                    .replace(" ", "")
-                    .replace("-", "")
-                    .replace("/", "")
-                )
-                raw_pin = (user_input.get(CONF_PIN) or "").strip()
+        if user_input is not None:
+            raw_phone = (
+                (user_input.get(CONF_PHONE_NUMBER) or "")
+                .strip()
+                .replace(" ", "")
+                .replace("-", "")
+                .replace("/", "")
+            )
+            raw_pin = (user_input.get(CONF_PIN) or "").strip()
 
-                if raw_phone or raw_pin:
-                    # User filled in phone or PIN -> credentials login
-                    if raw_phone.startswith("00"):
-                        self._phone_number = "+" + raw_phone[2:]
-                    elif raw_phone.startswith("+"):
-                        self._phone_number = raw_phone
-                    elif raw_phone.startswith("0") and len(raw_phone) >= 9:
-                        self._phone_number = "+49" + raw_phone[1:]
-                    else:
-                        self._phone_number = "+" + raw_phone
+            if raw_pin:
+                # PIN provided -> credentials login
+                if raw_phone.startswith("00"):
+                    self._phone_number = "+" + raw_phone[2:]
+                elif raw_phone.startswith("+"):
+                    self._phone_number = raw_phone
+                elif raw_phone.startswith("0") and len(raw_phone) >= 9:
+                    self._phone_number = "+49" + raw_phone[1:]
+                elif raw_phone:
+                    self._phone_number = "+" + raw_phone
+                else:
+                    self._phone_number = ""
 
-                    digits_only = "".join(filter(str.isdigit, self._phone_number))
-                    if not self._phone_number.startswith("+") or not (
-                        7 <= len(digits_only) <= 15
-                    ):
-                        errors[CONF_PHONE_NUMBER] = "invalid_phone"
+                digits_only = "".join(filter(str.isdigit, self._phone_number))
+                if not self._phone_number.startswith("+") or not (
+                    7 <= len(digits_only) <= 15
+                ):
+                    errors[CONF_PHONE_NUMBER] = "invalid_phone"
 
-                    self._pin = raw_pin
-                    if not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
-                        errors[CONF_PIN] = "invalid_pin"
+                self._pin = raw_pin
+                if not self._pin.isdigit() or not (4 <= len(self._pin) <= 6):
+                    errors[CONF_PIN] = "invalid_pin"
 
-                    if not errors:
-                        import aiohttp
+                if not errors:
+                    import aiohttp
 
-                        url_init = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
-                        try:
-                            async with aiohttp.ClientSession() as session:
-                                async with session.post(
-                                    url_init,
-                                    json={
-                                        "phone_number": self._phone_number,
-                                        "pin": self._pin,
-                                    },
-                                    timeout=aiohttp.ClientTimeout(total=45),
-                                ) as resp:
-                                    if resp.status == 200:
-                                        data = await resp.json()
-                                        if data.get("success"):
-                                            return await self.async_step_addon_2fa()
-                                        errors["base"] = "addon_api_error"
-                                    elif resp.status == 400:
-                                        err_data = await resp.json()
-                                        err_raw = str(
-                                            err_data.get("detail", "")
-                                        ).lower()
-                                        if (
-                                            "missing" in err_raw
-                                            or "header" in err_raw
-                                            or "waf" in err_raw
-                                        ):
-                                            errors["base"] = "addon_api_error"
-                                        else:
-                                            errors["base"] = "invalid_auth"
-                                    elif resp.status == 426:
-                                        errors["base"] = "addon_api_outdated"
-                                    elif resp.status == 405:
+                    url_init = f"http://{self._addon_host}:{self._addon_port}/api/v1/login/init"
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.post(
+                                url_init,
+                                json={
+                                    "phone_number": self._phone_number,
+                                    "pin": self._pin,
+                                },
+                                timeout=aiohttp.ClientTimeout(total=45),
+                            ) as resp:
+                                if resp.status == 200:
+                                    data = await resp.json()
+                                    if data.get("success"):
+                                        return await self.async_step_addon_2fa()
+                                    errors["base"] = "addon_api_error"
+                                elif resp.status == 400:
+                                    err_data = await resp.json()
+                                    err_raw = str(err_data.get("detail", "")).lower()
+                                    if (
+                                        "missing" in err_raw
+                                        or "header" in err_raw
+                                        or "waf" in err_raw
+                                    ):
                                         errors["base"] = "addon_api_error"
                                     else:
-                                        errors["base"] = "addon_api_error"
-                        except aiohttp.ClientConnectorError:
-                            errors["base"] = "cannot_connect_addon"
-                        except Exception:  # noqa: BLE001
-                            errors["base"] = "cannot_connect_addon"
-                else:
-                    # Neither phone nor PIN entered -> user wants QR code verification
+                                        errors["base"] = "invalid_auth"
+                                elif resp.status == 426:
+                                    errors["base"] = "addon_api_outdated"
+                                elif resp.status == 405:
+                                    errors["base"] = "addon_api_error"
+                                else:
+                                    errors["base"] = "addon_api_error"
+                    except aiohttp.ClientConnectorError:
+                        errors["base"] = "cannot_connect_addon"
+                    except Exception:  # noqa: BLE001
+                        errors["base"] = "cannot_connect_addon"
+            else:
+                # No PIN entered (even if phone is pre-filled) -> check/continue with QR login
+                addon_client = AddonClient(
+                    default_host=self._addon_host, default_port=self._addon_port
+                )
+                try:
                     candidate, data = await addon_client.fetch_session(
                         preferred_host=self._addon_host, port=self._addon_port
                     )
@@ -346,15 +346,53 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                         token = data.get("session_token")
                         phone = data.get("phone_number") or ""
                         is_logged_in = data.get("is_logged_in", True)
-
                         if token and is_logged_in:
                             return await self._async_finish_addon_auth(
                                 token, phone, candidate, self._addon_port
                             )
+                finally:
+                    await addon_client.close()
+                return await self.async_step_addon_qr()
 
-                    errors["base"] = "qr_not_confirmed"
+        phone_field = (
+            vol.Optional(CONF_PHONE_NUMBER, default=self._phone_number)
+            if self._phone_number
+            else vol.Optional(CONF_PHONE_NUMBER)
+        )
+        return self.async_show_form(
+            step_id="addon_scan",
+            data_schema=vol.Schema(
+                {
+                    phone_field: str,
+                    vol.Optional(CONF_PIN): str,
+                }
+            ),
+            errors=errors,
+        )
 
-            # Fetch latest QR code from Add-on (avoid forcing page reload unless retry > 0)
+    async def async_step_addon_qr(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Display QR code login step after phone/PIN form."""
+        errors: dict[str, str] = {}
+        addon_client = AddonClient(
+            default_host=self._addon_host, default_port=self._addon_port
+        )
+        try:
+            if user_input is not None:
+                candidate, data = await addon_client.fetch_session(
+                    preferred_host=self._addon_host, port=self._addon_port
+                )
+                if candidate and data:
+                    token = data.get("session_token")
+                    phone = data.get("phone_number") or ""
+                    is_logged_in = data.get("is_logged_in", True)
+                    if token and is_logged_in:
+                        return await self._async_finish_addon_auth(
+                            token, phone, candidate, self._addon_port
+                        )
+                errors["base"] = "qr_not_confirmed"
+
             qr_image = None
             for attempt in range(3):
                 candidate, qr_data, is_logged_in = await addon_client.fetch_qr_code(
@@ -365,7 +403,6 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                 if candidate:
                     self._addon_host = candidate
                 if is_logged_in:
-                    # Connected while scanning
                     candidate, data = await addon_client.fetch_session(
                         preferred_host=self._addon_host, port=self._addon_port
                     )
@@ -386,13 +423,8 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             loading_placeholder = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyMjAnIGhlaWdodD0nMjIwJyB2aWV3Qm94PScwIDAgMjIwIDIyMCc+PHJlY3Qgd2lkdGg9JzIyMCcgaGVpZ2h0PScyMjAnIGZpbGw9JyMxZTI5M2InIHJ4PScxMicvPjx0ZXh0IHg9JzUwJScgeT0nNDUlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBmaWxsPScjOTRhM2I4JyBmYW1pbHktZmFtaWx5PSdzYW5zLXNlcmlmJyBmb250LXNpemU9JzE0Jz5RUi1Db2RlIHdpcmQgZ2VsYWRlbi4uLjwvdGV4dD48dGV4dCB4PSc1MCUnIHk9JzYwJScgZG9taW5hbnQtYmFzZWxpbmU9J21pZGRsZScgdGV4dC1hbmNob3I9J21pZGRsZScgZmlsbD0nIzY0NzQ4YicgZmFtaWx5LWZhbWlseT0nc2Fucy1zZXJpZicgZm9udC1zaXplPScxMic+Qml0dGUga3VyeiB3YXJ0ZW4gb2RlciBBYnNlbmRlbiBrbGlja2VuPC90ZXh0Pjwvc3ZnPg=="
 
             return self.async_show_form(
-                step_id="addon_scan",
-                data_schema=vol.Schema(
-                    {
-                        vol.Optional(CONF_PHONE_NUMBER): str,
-                        vol.Optional(CONF_PIN): str,
-                    }
-                ),
+                step_id="addon_qr",
+                data_schema=vol.Schema({}),
                 description_placeholders={
                     "qr_image": qr_image or loading_placeholder,
                 },
@@ -791,6 +823,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
     ) -> ConfigFlowResult:
         """Handle Step 2 (Manual Mode): Enter phone, PIN and optional session token."""
         errors: dict[str, str] = {}
+        entry = self.hass.config_entries.async_get_entry(
+            self.context.get("entry_id", "")
+        )
 
         if user_input is not None:
             raw_phone = (
@@ -818,8 +853,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             ):
                 errors[CONF_PHONE_NUMBER] = "invalid_phone"
             else:
-                await self.async_set_unique_id(self._phone_number.lower())
-                self._abort_if_unique_id_configured()
+                if not entry:
+                    await self.async_set_unique_id(self._phone_number.lower())
+                    self._abort_if_unique_id_configured()
 
                 if self._pin and (
                     not self._pin.isdigit() or not (4 <= len(self._pin) <= 6)
@@ -840,6 +876,10 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                         await self._client.connect()
                         if clean_token:
                             if await self._client.verify_session():
+                                if entry:
+                                    return await self._async_finish_manual_reauth(
+                                        entry, clean_token
+                                    )
                                 return self.async_create_entry(
                                     title=self._phone_number or "Trade Republic",
                                     data={
@@ -868,6 +908,10 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                         errors["base"] = "unknown"
                     else:
                         if not clean_token:
+                            if entry:
+                                return await self._async_finish_manual_reauth(
+                                    entry, self._client.session_token or ""
+                                )
                             return self.async_create_entry(
                                 title=self._phone_number or "Trade Republic",
                                 data={
@@ -882,17 +926,51 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                             await self._client.close()
                             self._client = None
 
+        phone_field = (
+            vol.Required(CONF_PHONE_NUMBER, default=self._phone_number)
+            if self._phone_number
+            else vol.Required(CONF_PHONE_NUMBER)
+        )
         return self.async_show_form(
             step_id="manual",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_PHONE_NUMBER): str,
+                    phone_field: str,
                     vol.Optional(CONF_PIN): str,
                     vol.Optional(CONF_SESSION_TOKEN): str,
                 }
             ),
             errors=errors,
         )
+
+    async def _async_finish_manual_reauth(
+        self, entry: config_entries.ConfigEntry, token: str
+    ) -> ConfigFlowResult:
+        """Persist manual session token on an existing config entry during reauth."""
+        try:
+            from homeassistant.helpers import issue_registry as ir
+
+            ir.async_delete_issue(
+                self.hass,
+                DOMAIN,
+                f"reauth_required_{entry.entry_id}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            _LOGGER.debug("Failed to delete reauth repair issue: %s", exc)
+
+        self.hass.config_entries.async_update_entry(
+            entry,
+            data={
+                **entry.data,
+                CONF_PHONE_NUMBER: self._phone_number
+                or entry.data.get(CONF_PHONE_NUMBER, ""),
+                CONF_PIN: self._pin or entry.data.get(CONF_PIN, ""),
+                CONF_SESSION_TOKEN: token,
+                CONF_AUTH_MODE: AUTH_MODE_MANUAL,
+            },
+        )
+        await self.hass.config_entries.async_reload(entry.entry_id)
+        return self.async_abort(reason="reauth_successful")
 
     async def async_step_mfa(
         self, user_input: dict[str, Any] | None = None
@@ -983,7 +1061,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             else DEFAULT_ADDON_PORT
         )
 
-        # If in Add-on mode, present choices: sync active session, open Ingress Web UI in new tab, or log in directly in HA
+        if entry and not self._phone_number:
+            self._phone_number = entry.data.get(CONF_PHONE_NUMBER)
+        # If in Add-on mode, present choices: sync active session, open Ingress Web UI, log in in HA, or manual token
         if auth_mode == AUTH_MODE_ADDON:
             if user_input is not None:
                 action = user_input.get("reauth_action")
@@ -1018,6 +1098,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
 
                 elif action == "in_ha":
                     return await self.async_step_addon_scan()
+
+                elif action == "manual":
+                    return await self.async_step_manual()
 
             # Dynamic check of add-on reachability and session state for reauth display
             addon_client = AddonClient(
@@ -1056,7 +1139,7 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                             default=default_action,
                         ): selector.SelectSelector(
                             selector.SelectSelectorConfig(
-                                options=["sync", "ingress", "in_ha"],
+                                options=["sync", "ingress", "in_ha", "manual"],
                                 mode=selector.SelectSelectorMode.LIST,
                                 translation_key="reauth_action",
                             )
@@ -1181,31 +1264,9 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
                     phone = data.get("phone_number") or ""
                     is_logged_in = data.get("is_logged_in", True)
                     if token and is_logged_in and entry:
-                        try:
-                            from homeassistant.helpers import issue_registry as ir
-
-                            ir.async_delete_issue(
-                                self.hass,
-                                DOMAIN,
-                                f"reauth_required_{entry.entry_id}",
-                            )
-                        except Exception as issue_err:  # noqa: BLE001
-                            _LOGGER.debug(
-                                "Could not delete reauth issue: %s", issue_err
-                            )
-
-                        self.hass.config_entries.async_update_entry(
-                            entry,
-                            data={
-                                **entry.data,
-                                CONF_PHONE_NUMBER: phone
-                                or entry.data.get(CONF_PHONE_NUMBER, ""),
-                                CONF_SESSION_TOKEN: token,
-                                CONF_ADDON_HOST: candidate,
-                            },
+                        return await self._async_finish_addon_auth(
+                            token, phone, candidate, self._addon_port
                         )
-                        await self.hass.config_entries.async_reload(entry.entry_id)
-                        return self.async_abort(reason="reauth_successful")
                 errors["base"] = "addon_no_session"
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.debug(
@@ -1215,10 +1276,11 @@ class TradeRepublicConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):  # type
             finally:
                 await addon_client.close()
 
-        return self.async_external_step(
+        return self.async_show_form(
             step_id="reauth_ingress",
-            url=ingress_url,
+            data_schema=vol.Schema({}),
             description_placeholders={"ingress_url": ingress_url},
+            errors=errors,
         )
 
 

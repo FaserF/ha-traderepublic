@@ -391,7 +391,7 @@ async def test_config_flow_user_addon_not_detected(hass: HomeAssistant) -> None:
 
 @pytest.mark.asyncio
 async def test_config_flow_reauth_ingress_flow(hass: HomeAssistant) -> None:
-    """Test reauth ingress action opens external step in new tab."""
+    """Test reauth ingress action shows form with Ingress link."""
     from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
 
     flow = TradeRepublicConfigFlow()
@@ -402,9 +402,12 @@ async def test_config_flow_reauth_ingress_flow(hass: HomeAssistant) -> None:
 
     # Trigger ingress action
     res = await flow.async_step_reauth_ingress()
-    assert res["type"] in ("external", "external_step")
+    assert res["type"] == "form"
     assert res["step_id"] == "reauth_ingress"
-    assert res["url"] == "/hassio/ingress/edfe50eb_traderepublic"
+    assert (
+        res["description_placeholders"]["ingress_url"]
+        == "/hassio/ingress/edfe50eb_traderepublic"
+    )
 
 
 @pytest.mark.asyncio
@@ -430,7 +433,7 @@ async def test_config_flow_closes_addon_client_sessions(
             await flow.async_step_user()
         assert client_inst.close.await_count == 1
 
-    # 2. async_step_addon_scan closes AddonClient on form render
+    # 2. async_step_addon_qr closes AddonClient on form render
     flow2 = TradeRepublicConfigFlow()
     flow2.hass = hass
     flow2.context = {}
@@ -443,7 +446,7 @@ async def test_config_flow_closes_addon_client_sessions(
         client_inst2 = AsyncMock()
         client_inst2.fetch_qr_code.return_value = ("127.0.0.1", None, False)
         mock_client_cls2.return_value = client_inst2
-        res = await flow2.async_step_addon_scan()
+        res = await flow2.async_step_addon_qr()
         assert res["type"] == "form"
         assert client_inst2.close.await_count == 1
 
@@ -510,12 +513,123 @@ async def test_config_flow_addon_scan_qr_reauth_updates_entry(
         )
         mock_client_cls.return_value = client_inst
 
-        res = await flow.async_step_addon_scan()
+        res = await flow.async_step_addon_qr()
         assert res["type"] == "abort"
         assert res["reason"] == "reauth_successful"
         assert mock_config_entry.data["session_token"] == "new_qr_token"
         assert mock_reload.await_count == 1
         assert client_inst.close.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_config_flow_addon_scan_prefills_phone_and_allows_qr_without_pin(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Verify addon_scan pre-fills phone number and triggers QR flow when PIN is omitted."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+    from custom_components.traderepublic.const import CONF_PHONE_NUMBER
+
+    mock_config_entry.add_to_hass(hass)
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {"entry_id": mock_config_entry.entry_id}
+    flow._phone_number = "+49123456789"
+    flow._addon_host = "127.0.0.1"
+    flow._addon_port = 8095
+
+    res_form = await flow.async_step_addon_scan()
+    assert res_form["type"] == "form"
+    assert res_form["step_id"] == "addon_scan"
+    phone_key = next(
+        k
+        for k in res_form["data_schema"].schema
+        if getattr(k, "schema", None) == CONF_PHONE_NUMBER
+    )
+    assert phone_key.default() == "+49123456789"
+
+    # Submit with pre-filled phone and empty PIN -> should check session then show addon_qr
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.AddonClient"
+        ) as mock_client_cls,
+        patch("asyncio.sleep", return_value=None),
+    ):
+        client_inst = AsyncMock()
+        client_inst.fetch_session.return_value = (
+            "127.0.0.1",
+            {"session_token": None, "is_logged_in": False},
+        )
+        client_inst.fetch_qr_code.return_value = (
+            "127.0.0.1",
+            "data:image/png;base64,abc",
+            False,
+        )
+        mock_client_cls.return_value = client_inst
+
+        res_qr = await flow.async_step_addon_scan(
+            user_input={CONF_PHONE_NUMBER: "+49123456789", "pin": ""}
+        )
+        assert res_qr["type"] == "form"
+        assert res_qr["step_id"] == "addon_qr"
+        assert (
+            res_qr["description_placeholders"]["qr_image"]
+            == "data:image/png;base64,abc"
+        )
+
+
+@pytest.mark.asyncio
+async def test_config_flow_reauth_manual_option_updates_entry(
+    hass: HomeAssistant, mock_config_entry
+) -> None:
+    """Verify reauth_confirm manual option updates entry to manual mode with token."""
+    from unittest.mock import AsyncMock
+
+    from custom_components.traderepublic.config_flow import TradeRepublicConfigFlow
+    from custom_components.traderepublic.const import (
+        AUTH_MODE_MANUAL,
+        CONF_AUTH_MODE,
+        CONF_PHONE_NUMBER,
+        CONF_SESSION_TOKEN,
+    )
+
+    mock_config_entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        mock_config_entry,
+        data={**mock_config_entry.data, CONF_AUTH_MODE: "addon"},
+    )
+    flow = TradeRepublicConfigFlow()
+    flow.hass = hass
+    flow.context = {"entry_id": mock_config_entry.entry_id}
+
+    res_manual_form = await flow.async_step_reauth_confirm(
+        user_input={"reauth_action": "manual"}
+    )
+    assert res_manual_form["type"] == "form"
+    assert res_manual_form["step_id"] == "manual"
+
+    with (
+        patch(
+            "custom_components.traderepublic.config_flow.TradeRepublicAPIClient"
+        ) as mock_api_cls,
+        patch.object(hass.config_entries, "async_reload", new=AsyncMock()),
+    ):
+        api_inst = AsyncMock()
+        api_inst.verify_session.return_value = True
+        mock_api_cls.return_value = api_inst
+
+        res_done = await flow.async_step_manual(
+            user_input={
+                CONF_PHONE_NUMBER: "+49123456789",
+                "pin": "",
+                CONF_SESSION_TOKEN: "manual_jwt_tok",
+            }
+        )
+        assert res_done["type"] == "abort"
+        assert res_done["reason"] == "reauth_successful"
+        assert mock_config_entry.data[CONF_AUTH_MODE] == AUTH_MODE_MANUAL
+        assert mock_config_entry.data[CONF_SESSION_TOKEN] == "manual_jwt_tok"
 
 
 @pytest.mark.asyncio

@@ -33,11 +33,15 @@
 
       "addon_scan": {
         "title": "Trade Republic Login",
-        "description": "Scan the QR code with your smartphone camera OR enter your phone number & PIN below (Recommended).\n\n*Note on QR code: The Trade Republic mobile app does NOT have an in-app QR scanner in settings. The QR code is a deep-link for your phone camera. Depending on phone settings, scanning may open App Settings instead of starting login.*\n\n**Recommendation:** Enter your phone number & PIN below. Trade Republic will immediately send a push notification to your phone for 1-tap confirmation.\n\n![QR Code]({qr_image})",
+        "description": "Enter your phone number & PIN below (Recommended — sends a 1-tap push notification to your Trade Republic app).\n\nAlternatively, leave PIN empty and click Submit to use QR code login.",
         "data": {
           "phone_number": "Phone Number (Recommended, e.g. +491701234567)",
           "pin": "PIN (Recommended, 4-6 digits)"
         }
+      },
+      "addon_qr": {
+        "title": "Trade Republic QR Code Login",
+        "description": "Scan the QR code with your smartphone camera, approve the login in the Trade Republic app, then click Submit.\n\n*Note: The Trade Republic app has no in-app QR scanner; use your phone's camera app.*\n\n![QR Code]({qr_image})"
       },
       "addon_login": {
         "title": "Login via Trade Republic Add-on",
@@ -87,7 +91,7 @@
       },
       "reauth_ingress": {
         "title": "Trade Republic Add-on Web UI",
-        "description": "Click the button below to open the Trade Republic Add-on Web UI (Ingress) in a new tab. Log in there, then return to Home Assistant and click Next."
+        "description": "Open the Trade Republic Add-on Web UI using the link below, log in there, then return here and click Submit.\n\n👉 [Open Trade Republic Add-on Web UI]({ingress_url})"
       }
 
 
@@ -136,14 +140,15 @@
     "auth_mode": {
       "options": {
         "addon": "Trade Republic Home Assistant Add-on (Recommended)",
-        "manual": "Manual Credentials / Token (Without Add-on)"
+        "manual": "Manual Credentials / Token without Add-on (Not recommended)"
       }
     },
     "reauth_action": {
       "options": {
         "sync": "Sync session from Trade Republic Add-on",
-        "ingress": "Log in via Add-on Web UI (Ingress, opens new tab)",
-        "in_ha": "Log in directly in Home Assistant (QR Code / Credentials)"
+        "ingress": "Log in via Add-on Web UI (Ingress)",
+        "in_ha": "Log in directly in Home Assistant (Credentials / QR Code)",
+        "manual": "Manual Credentials / Token without Add-on (Not recommended)"
       }
     }
   },

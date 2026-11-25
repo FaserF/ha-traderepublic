@@ -33,11 +33,15 @@
 
       "addon_scan": {
         "title": "Trade Republic Anmeldung",
-        "description": "Scanne den QR-Code mit der Smartphone-Kamera ODER trage direkt Telefonnummer & PIN darunter ein (Empfohlen).\n\n*Hinweis zum QR-Code: In der Trade Republic App gibt es keinen Menüpunkt zum Scannen. Der QR-Code ist ein App-Link für die normale Smartphone-Kamera. Je nach Smartphone-Einstellungen öffnet dieser manchmal nur die App-Info statt den Login zu starten.*\n\n**Empfehlung:** Gib einfach deine Telefonnummer & PIN unten ein. Trade Republic sendet dann sofort eine Push-Benachrichtigung an deine Smartphone-App, die du mit 1 Klick bestätigen kannst.\n\n![QR Code]({qr_image})",
+        "description": "Gib unten deine Telefonnummer & PIN ein (Empfohlen — sendet eine 1-Klick-Push-Benachrichtigung an deine Trade Republic App).\n\nAlternativ lasse das PIN-Feld leer und klicke auf Absenden, um den QR-Code-Login zu nutzen.",
         "data": {
           "phone_number": "Telefonnummer (Empfohlen, z. B. +491701234567)",
           "pin": "PIN (Empfohlen, 4–6 Ziffern)"
         }
+      },
+      "addon_qr": {
+        "title": "Trade Republic QR-Code Anmeldung",
+        "description": "Scanne den QR-Code mit der Smartphone-Kamera, bestätige den Login in der Trade Republic App und klicke dann auf Absenden.\n\n*Hinweis: Die Trade Republic App hat keinen eigenen QR-Scanner; nutze die normale Kamera-App.*\n\n![QR Code]({qr_image})"
       },
       "addon_login": {
         "title": "Anmeldung über Trade Republic Add-on",
@@ -87,7 +91,7 @@
       },
       "reauth_ingress": {
         "title": "Trade Republic Add-on Web-Oberfläche",
-        "description": "Klicke auf den Button unten, um die Trade Republic Add-on Web-Oberfläche (Ingress) in einem neuen Tab zu öffnen. Melde dich dort an und klicke anschließend hier auf Weiter."
+        "description": "Öffne die Trade Republic Add-on Web-Oberfläche über den Link unten, melde dich dort an und klicke anschließend hier auf Absenden.\n\n👉 [Trade Republic Add-on Web-Oberfläche öffnen]({ingress_url})"
       }
 
     },
@@ -136,14 +140,15 @@
     "auth_mode": {
       "options": {
         "addon": "Trade Republic Home Assistant Add-on (Empfohlen)",
-        "manual": "Manuelle Zugangsdaten / Session-Token (Ohne Add-on)"
+        "manual": "Manuelle Zugangsdaten / Session-Token ohne Add-on (Nicht empfohlen)"
       }
     },
     "reauth_action": {
       "options": {
         "sync": "Sitzung vom Trade Republic Add-on synchronisieren",
-        "ingress": "In Add-on Web-Oberfläche (Ingress) anmelden (öffnet neuen Tab)",
-        "in_ha": "Direkt in Home Assistant neu anmelden (QR-Code / Zugangsdaten)"
+        "ingress": "In Add-on Web-Oberfläche (Ingress) anmelden",
+        "in_ha": "Direkt in Home Assistant anmelden (Zugangsdaten / QR-Code)",
+        "manual": "Manuelle Zugangsdaten / Session-Token ohne Add-on (Nicht empfohlen)"
       }
     }
   },
